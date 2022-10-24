@@ -1,0 +1,10 @@
+# Copyright 2022 Chainguard, Inc.
+# SPDX-License-Identifier: Apache-2.0
+
+apiVersion: v1
+kind: Secret
+metadata:
+  name: mcp-creds
+  namespace: gulfstream
+stringData:
+  code: {{ required "\nA valid invite code is required! Ensure you've added your Enforce invite code to the 'inviteCode' in values.yaml.\nIf you need to generate one, you can use:\n\tchainctl iam invite create $GROUP --cluster -ojson | jq -r .code" .Values.inviteCode }}

@@ -2,7 +2,9 @@
 # SPDX-License-Identifier: Apache-2.0
 
 # Invite code assigned to group where clusters will be registered
-inviteCode: changeme
+# This can be retrieved with the following chainctl command:
+#   $(chainctl iam invite create $GROUP --cluster -ojson | jq -r .code)
+inviteCode:
 
 controller:
   image:
