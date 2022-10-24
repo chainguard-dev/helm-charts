@@ -1,0 +1,233 @@
+# Copyright 2022 Chainguard, Inc.
+# SPDX-License-Identifier: Apache-2.0
+
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: meta-controlplane
+  namespace: gulfstream
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app: controlplane
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: meta-controlplane
+  namespace: gulfstream
+spec:
+  # Keep replicas in sync with "buckets" value in config-leader-election.yaml.
+  replicas: 2
+  # We allow things to deploy and update in parallel, but use a
+  # PodDisruptionBudget (above) to ensure that at least 1 pod remains available
+  # as we are updating things.  This is a delicate balancing act because:
+  # 1. We need to launch the initial set of pods in "Parallel" so that whichever
+  #   pod ends up the leader of the webhook cert comes up immediately, but
+  # 2. We cannot update all pods in parallel because this serves a webhook that
+  #   would become unavailable if all the pods were deleted at once.
+  podManagementPolicy: Parallel
+  updateStrategy:
+    type: RollingUpdate
+  selector:
+    matchLabels:
+      app: meta-controlplane
+  serviceName: &service "webhook"
+  template:
+    metadata:
+      labels:
+        app: meta-controlplane
+    spec:
+      # To avoid node becoming SPOF, spread our replicas to different nodes.
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            # favor pods on different nodes
+          - podAffinityTerm:
+              labelSelector:
+                matchLabels:
+                  app: meta-controlplane
+              topologyKey: kubernetes.io/hostname
+            weight: 100
+            # favor pods in different zones
+          - podAffinityTerm:
+              labelSelector:
+                matchLabels:
+                  app: meta-controlplane
+              topologyKey: "topology.kubernetes.io/zone"
+            weight: 100
+
+
+      serviceAccountName: controller
+      containers:
+      - name: controller
+        image: "{{ template "gulfstream.image" .Values.controller.image }}"
+
+        resources:
+          requests:
+            cpu: 50m
+            memory: 50Mi
+          limits:
+            cpu: 1000m
+            memory: 1000Mi
+
+        ports:
+        - name: https-webhook
+          containerPort: 8443
+
+        readinessProbe:
+          periodSeconds: 1
+          httpGet:
+            scheme: HTTPS
+            port: 8443
+            httpHeaders:
+            - name: k-kubelet-probe
+              value: "meta-controlplane"
+        livenessProbe:
+          periodSeconds: 1
+          failureThreshold: 50
+          httpGet:
+            scheme: HTTPS
+            port: 8443
+            httpHeaders:
+            - name: k-kubelet-probe
+              value: "meta-controlplane"
+
+        env:
+        - name: KUBERNETES_MIN_VERSION
+          value: "1.21.0"
+
+        # These settings are used for statefulset-based
+        # leader selection.
+        - name: STATEFUL_CONTROLLER_ORDINAL
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.name
+        - name: STATEFUL_SERVICE_NAME
+          value: *service
+
+        - name: SYSTEM_NAMESPACE
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.namespace
+        - name: POD_IP
+          valueFrom:
+            fieldRef:
+              fieldPath: status.podIP
+        - name: CONFIG_LOGGING_NAME
+          value: config-logging
+        - name: CONFIG_OBSERVABILITY_NAME
+          value: config-observability
+        - name: METRICS_DOMAIN
+          value: gulfstream.dev/meta
+
+        securityContext:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+          runAsNonRoot: true
+          capabilities:
+            drop:
+            - all
+
+        volumeMounts:
+        # To remove the STS process, replace this with oidc-token,
+        # drop the sidecar, and the sts-token volume below.
+        - name: sts-token
+          mountPath: /var/run/gulfstream
+
+      - name: sts
+        # The STS container is responsible for normalizing federated OIDC
+        # tokens by using `chainctl auth login [...] --refresh` with the
+        # "sts-in" identity token.
+        image: "{{ template "gulfstream.image" .Values.chainctl.image }}"
+        readinessProbe:
+          exec:
+            command:
+            - /ko-app/chainctl
+            - auth
+            - status
+            # Don't call any APIs, just do some basic
+            # token integrity checks.
+            - --quick
+          initialDelaySeconds: 1
+          periodSeconds: 5
+        args: [
+            "auth", "login",
+            "--audience", "gulfstream",
+            "--identity-token", "/var/run/sts-in/oidc-token",
+            "--gulfstream",
+          # When INVITE_CODE is populated, failures to exchange tokens
+          # will cause us to attempt to register this service account
+          # and cluster using the invite code as authentication.
+        ]
+        env:
+        - name: XDG_CACHE_HOME
+          value: /var/run/sts-out
+        - name: SYSTEM_NAMESPACE
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.namespace
+        - name: INVITE_CODE
+          valueFrom:
+            secretKeyRef:
+              name: mcp-creds
+              key: code
+              optional: true
+        - name: IDENTITY_UID
+          valueFrom:
+            secretKeyRef:
+              name: mcp-creds
+              key: identity-uid
+              optional: true
+
+        # If we mount GCP credentials, this is where we will mount them.
+        - name: GOOGLE_APPLICATION_CREDENTIALS
+          valueFrom:
+            secretKeyRef:
+              name: mcp-creds
+              key: gcp-svc-acct-path
+              optional: true
+        - name: GOOGLE_SERVICE_ACCOUNT_NAME
+          valueFrom:
+            secretKeyRef:
+              name: mcp-creds
+              key: gcp-svc-acct-name
+              optional: true
+
+        securityContext:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+          runAsNonRoot: true
+          capabilities:
+            drop:
+              - all
+
+        volumeMounts:
+        - mountPath: /var/run/sts-in
+          name: oidc-token
+          readOnly: true
+        - mountPath: /var/run/sts-out/chainguard
+          name: sts-token
+        - name: mcp-creds
+          mountPath: /var/run/sts
+          readOnly: true
+
+      volumes:
+        - name: sts-token
+          emptyDir: {}
+        - name: oidc-token
+          projected:
+            sources:
+              - serviceAccountToken:
+                  path: oidc-token
+                  # 600 is the shortest supported lifespan
+                  expirationSeconds: 600
+                  audience: gulfstream
+        - name: mcp-creds
+          secret:
+            secretName: mcp-creds
+            optional: true
+            items:
+            - key: gcp.json
+              path: gcp.json

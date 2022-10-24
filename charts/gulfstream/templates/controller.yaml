@@ -1,0 +1,184 @@
+# Copyright 2022 Chainguard, Inc.
+# SPDX-License-Identifier: Apache-2.0
+
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: controllers.gulfstream.dev
+spec:
+  scope: Cluster
+  group: gulfstream.dev
+  names:
+    kind: Controller
+    plural: controllers
+    singular: controller
+    categories:
+      - all
+      - gulfstream
+    shortNames:
+      - gsc
+  versions:
+    - name: v1alpha1
+      served: true
+      storage: true
+      subresources:
+        status: {}
+      additionalPrinterColumns:
+        - name: Ready
+          type: string
+          jsonPath: ".status.conditions[?(@.type=='Ready')].status"
+        - name: Reason
+          type: string
+          jsonPath: ".status.conditions[?(@.type=='Ready')].reason"
+      schema:
+        openAPIV3Schema:
+          type: object
+          properties:
+            spec:
+              description: Spec holds the desired state of the Controller (from the client).
+              type: object
+              properties:
+                authorized:
+                  description: Authorized conveys the resources that the controller is allowed to access, but doesn't watch to trigger reconciliation.
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      allowCrossNamespace:
+                        description: AllowCrossNamespace determines whether these resources may be accessed outside of the primary resource's namespace.  If the primary resource is cluster-scoped, then this field is irrelevant.  If the primary resource is namespace-scoped, then this field must be true to access resources in other namespaces or cluster-scoped resources.
+                        type: boolean
+                      group:
+                        description: Group is the API group of the resources being authorized.
+                        type: string
+                      resources:
+                        description: Resources is the list of resources within the group to authorize.
+                        type: array
+                        items:
+                          type: string
+                      verbs:
+                        description: Verbs is the list of verbs on these resources to authorize. If Verbs is empty, then all verbs are authorized.
+                        type: array
+                        items:
+                          type: string
+                configs:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      apiVersion:
+                        description: API version of the referent.
+                        type: string
+                      fieldPath:
+                        description: 'If referring to a piece of an object instead of an entire object, this string should contain a valid JSON/Go field access statement, such as desiredState.manifest.containers[2]. For example, if the object reference is to a container within a pod, this would take on a value like: "spec.containers{name}" (where "name" refers to the name of the container that triggered the event) or if no container name is specified "spec.containers[2]" (container with index 2 in this pod). This syntax is chosen only to have some well-defined way of referencing a part of an object.'
+                        type: string
+                      kind:
+                        description: 'Kind of the referent. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds'
+                        type: string
+                      name:
+                        description: 'Name of the referent. More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names'
+                        type: string
+                      namespace:
+                        description: 'Namespace of the referent. More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/namespaces/'
+                        type: string
+                      onChanged:
+                        type: string
+                      resourceVersion:
+                        description: 'Specific resourceVersion to which this reference is made, if any. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#concurrency-control-and-consistency'
+                        type: string
+                      uid:
+                        description: 'UID of the referent. More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#uids'
+                        type: string
+                delegate:
+                  description: The URL to delegate reconcilitation to, which must implement the gulfstream proto interface.
+                  type: string
+                primary:
+                  description: Primary conveys the "primary key" resource, in terms of which we orient all reconciliations.
+                  type: object
+                  properties:
+                    group:
+                      type: string
+                    match:
+                      type: array
+                      items:
+                        type: object
+                        properties:
+                          fieldPath:
+                            type: string
+                          value:
+                            type: string
+                    namespace:
+                      description: Namespace is an optional field restricting these resources to a single namespace.
+                      type: string
+                    resource:
+                      type: string
+                    resyncPeriod:
+                      type: string
+                    version:
+                      type: string
+                secondary:
+                  description: Secondary conveys the resources that are watched and accessed as part of reconciling the primary resources.
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      group:
+                        type: string
+                      match:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            fieldPath:
+                              type: string
+                            value:
+                              type: string
+                      namespace:
+                        description: Namespace is an optional field restricting these resources to a single namespace.
+                        type: string
+                      relationship:
+                        type: string
+                      resource:
+                        type: string
+                      resyncPeriod:
+                        type: string
+                      version:
+                        type: string
+            status:
+              description: Status communicates the observed state of the Controller (from the controller).
+              type: object
+              properties:
+                annotations:
+                  description: Annotations is additional Status fields for the Resource to save some additional State as well as convey more information to the user. This is roughly akin to Annotations on any k8s resource, just the reconciler conveying richer information outwards.
+                  type: object
+                  x-kubernetes-preserve-unknown-fields: true
+                conditions:
+                  description: Conditions the latest available observations of a resource's current state.
+                  type: array
+                  items:
+                    type: object
+                    required:
+                      - type
+                      - status
+                    properties:
+                      lastTransitionTime:
+                        description: LastTransitionTime is the last time the condition transitioned from one status to another. We use VolatileTime in place of metav1.Time to exclude this from creating equality.Semantic differences (all other things held constant).
+                        type: string
+                      message:
+                        description: A human readable message indicating details about the transition.
+                        type: string
+                      reason:
+                        description: The reason for the condition's last transition.
+                        type: string
+                      severity:
+                        description: Severity with which to treat failures of this type of condition. When this is not specified, it defaults to Error.
+                        type: string
+                      status:
+                        description: Status of the condition, one of True, False, Unknown.
+                        type: string
+                      type:
+                        description: Type of condition.
+                        type: string
+                observedGeneration:
+                  description: ObservedGeneration is the 'Generation' of the Service that was last processed by the controller.
+                  type: integer
+                  format: int64
