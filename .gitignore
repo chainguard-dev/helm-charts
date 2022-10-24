@@ -1,0 +1,19 @@
+### macOS ###
+*.DS_Store
+.AppleDouble
+.LSOverride
+
+### IntelliJ IDE
+.idea
+
+.work
+
+### Visual Studio Code
+.vscode
+
+# helm chart dependencies
+charts/*/charts/
+charts/*/Chart.lock
+
+# release packages
+.cr-release-packages/

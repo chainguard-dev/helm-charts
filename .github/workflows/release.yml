@@ -1,0 +1,71 @@
+name: Release Charts
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "charts/**"
+
+permissions:
+  contents: write
+  packages: write
+
+jobs:
+  release:
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@93ea575cb5d8a053eaa0ac8fa3b40d7e05a33cc8 # v3.1.0
+        with:
+          fetch-depth: 0
+
+      - name: Configure Git
+        run: |
+          git config user.name "$GITHUB_ACTOR"
+          git config user.email "$GITHUB_ACTOR@users.noreply.github.com"
+
+      - name: Install Helm
+        uses: azure/setup-helm@b5b231a831f96336bbfeccc1329990f0005c5bb1 # v3.3
+        with:
+          version: 3.10.1
+
+      - name: Install GPG Keys
+        run: |
+          cat <(echo -e "${{ secrets.GPG_PRIVATE_KEY }}") | gpg --import --batch
+          gpg --export > /home/runner/.gnupg/pubring.gpg
+          gpg --export-secret-keys > /home/runner/.gnupg/secring.gpg
+
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@f4ef78c080cd8ba55a85445d5b36e214a81df20a # v2.1.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Run chart-releaser
+        uses: helm/chart-releaser-action@98bccfd32b0f76149d188912ac8e45ddd3f8695f # v1.4.1
+        env:
+          CR_TOKEN: "${{ secrets.GITHUB_TOKEN }}"
+          CR_SIGN: "true"
+          CR_KEY: "${{ secrets.GPG_KEY_NAME }}"
+          CR_KEYRING: "/home/runner/.gnupg/secring.gpg"
+
+      - name: Upload Helm Charts to Rekor
+        run: |
+          for pkg in .cr-release-packages/*; do
+            if [ -z "${pkg}:-}" ]; then
+              break
+            fi
+            helm sigstore upload --keyring=/home/runner/.gnupg/secring.gpg "${pkg}"
+          done
+
+      - name: Push Charts as OCI to GHCR
+        run: |
+          for pkg in .cr-release-packages/*; do
+            if [ -z "${pkg:-}" ]; then
+              break
+            fi
+            helm push "${pkg}" "oci://ghcr.io/${GITHUB_REPOSITORY_OWNER}/charts"
+          done
+
