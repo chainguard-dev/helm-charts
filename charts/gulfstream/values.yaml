@@ -5,13 +5,3 @@
 # This can be retrieved with the following chainctl command:
 #   $(chainctl iam invite create $GROUP --cluster -ojson | jq -r .code)
 inviteCode:
-
-controller:
-  image:
-    repo: us.gcr.io/prod-enforce-fabc/controlplane
-    version: sha256:f9760265d67616451fa979d25e4c447bf9e0ba728bbdf6b0409ced34c6514d25
-
-chainctl:
-  image:
-    repo: us.gcr.io/prod-enforce-fabc/chainctl
-    version: sha256:ac373eed9e440b7f00b13cff3d917f8fc4276ca6c8ea6ec842e2408e5b3a1c05

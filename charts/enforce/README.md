@@ -1,10 +1,10 @@
-# gulfstream
+# enforce
 
 <!-- This README.md is generated. Please edit README.md.gotmpl -->
 
 ![Version: 0.0.1](https://img.shields.io/badge/Version-0.0.1-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: 0.0.1](https://img.shields.io/badge/AppVersion-0.0.1-informational?style=flat-square)
 
-A helm chart for Chainguard's Gulfstream Meta Controlplane.
+A helm chart for Chainguard's Enforce.
 
 **Homepage:** <https://chainguard.dev>
 
@@ -31,8 +31,3 @@ helm uninstall [RELEASE_NAME]
 | ---- | ------ | --- |
 | The Chainguard Team |  | <https://chainguard.dev> |
 
-## Values
-
-| Key | Type | Default | Description |
-|-----|------|---------|-------------|
-| inviteCode | string | `nil` |  |

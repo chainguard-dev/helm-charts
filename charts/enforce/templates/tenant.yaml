@@ -1,0 +1,1085 @@
+# Copyright 2022 Chainguard, Inc.
+# SPDX-License-Identifier: Apache-2.0
+
+apiVersion: gulfstream.dev/v1alpha1
+kind: Controller
+metadata:
+  name: eots-deployments
+spec:
+  primary:
+    group: apps
+    version: v1
+    resource: deployments
+  delegate: https://eots-omni.enforce.dev
+---
+apiVersion: gulfstream.dev/v1alpha1
+kind: Controller
+metadata:
+  name: eots-replicasets
+spec:
+  primary:
+    group: apps
+    version: v1
+    resource: replicasets
+  delegate: https://eots-omni.enforce.dev
+---
+apiVersion: gulfstream.dev/v1alpha1
+kind: Controller
+metadata:
+  name: eots-statefulsets
+spec:
+  primary:
+    group: apps
+    version: v1
+    resource: statefulsets
+  delegate: https://eots-omni.enforce.dev
+---
+apiVersion: gulfstream.dev/v1alpha1
+kind: Controller
+metadata:
+  name: eots-daemonsets
+spec:
+  primary:
+    group: apps
+    version: v1
+    resource: daemonsets
+  delegate: https://eots-omni.enforce.dev
+---
+apiVersion: gulfstream.dev/v1alpha1
+kind: Controller
+metadata:
+  name: eots-cronjobs
+spec:
+  primary:
+    group: batch
+    version: v1
+    resource: cronjobs
+  delegate: https://eots-omni.enforce.dev
+---
+apiVersion: gulfstream.dev/v1alpha1
+kind: Controller
+metadata:
+  name: eots-jobs
+spec:
+  primary:
+    group: batch
+    version: v1
+    resource: jobs
+  delegate: https://eots-omni.enforce.dev
+---
+apiVersion: gulfstream.dev/v1alpha1
+kind: Controller
+metadata:
+  name: eots-pods
+spec:
+  primary:
+    version: v1
+    resource: pods
+  delegate: https://eots-omni.enforce.dev
+---
+apiVersion: gulfstream.dev/v1alpha1
+kind: Controller
+metadata:
+  name: eots-namespaces
+spec:
+  primary:
+    version: v1
+    resource: namespaces
+  delegate: https://eots-omni.enforce.dev
+---
+apiVersion: gulfstream.dev/v1alpha1
+kind: Controller
+metadata:
+  name: eots-nodes
+spec:
+  primary:
+    version: v1
+    resource: nodes
+  delegate: https://eots-omni.enforce.dev
+
+# Copyright 2021 Chainguard, Inc.
+# SPDX-License-Identifier: Apache-2.0
+---
+# RBAC granting the gulfstream controller's aggregated cluster role access to the resources needed
+# TODO(mattmoor): It would be cool to have the proxy record
+# and minimize the RBAC we actually need here.
+kind: ClusterRole
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: eots
+  labels:
+    # Aggregate into the gulfstream's cluster role.
+    gulfstream.dev/controller: "true"
+rules:
+  - apiGroups: [""]
+    resources: ["pods", "namespaces", "nodes"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: ["batch"]
+    resources: ["cronjobs", "jobs"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: ["apps"]
+    resources: ["daemonsets", "deployments", "replicasets", "statefulsets"]
+    verbs: ["get", "list", "watch"]
+---
+
+
+---
+
+
+---
+# Copyright 2021 Chainguard, Inc.
+# SPDX-License-Identifier: Apache-2.0
+
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: cosign-system
+  labels:
+    policy.sigstore.dev/include: "false"
+    # When tenant is also a SAAS, we want to include this label to
+    # make sure we don't accidentally remove the cosign-system out
+    # of the service mesh.
+    #
+    # This is a nop when the tenant isn't a SAAS, since this
+    # namespace does not contain a pod.
+    istio-injection: enabled
+
+# Copyright 2021 Chainguard, Inc.
+# SPDX-License-Identifier: Apache-2.0
+---
+kind: ClusterRole
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: cosigned-image-policies-rbac
+rules:
+  - apiGroups: [""]
+    resources: ["configmaps", "secrets"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: [""]
+    resources: ["configmaps"]
+    resourceNames: ["config-image-policies"]
+    verbs: ["create", "update", "patch"]
+
+# Copyright 2021 Chainguard, Inc.
+# SPDX-License-Identifier: Apache-2.0
+---
+kind: ClusterRole
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: cosigned-rbac
+  labels:
+    # Aggregate into the gulfstream's cluster role.
+    gulfstream.dev/controller: "true"
+rules:
+  # Allow the reconciliation of exactly our validating and mutating webhooks.
+  - apiGroups: ["admissionregistration.k8s.io"]
+    resources: ["validatingwebhookconfigurations", "mutatingwebhookconfigurations"]
+    verbs: ["list", "watch"]
+  - apiGroups: ["admissionregistration.k8s.io"]
+    resources: ["validatingwebhookconfigurations", "mutatingwebhookconfigurations"]
+    verbs: ["get", "update"]
+    resourceNames:
+      - "enforcer.chainguard.dev"
+      - "policy-validation.webhook.policy.sigstore.dev"
+      - "policy-defaulting.webhook.policy.sigstore.dev"
+  # ClusterImagePolicy CRD related.
+  - apiGroups: ["apiextensions.k8s.io"]
+    resources: ["customresourcedefinitions"]
+    verbs: ["list", "watch"]
+  - apiGroups: ["apiextensions.k8s.io"]
+    resources: ["customresourcedefinitions"]
+    verbs: ["get", "update"]
+    resourceNames: ["clusterimagepolicies.policy.sigstore.dev"]
+  - apiGroups: ["policy.sigstore.dev"]
+    resources: ["*"]
+    # We need patch for finalizers
+    verbs: ["get", "list", "watch", "patch"]
+  # For the continuous-verification reconciler
+  # TODO(#1217): can remove once "namespace" supported in primary
+  - apiGroups: [""]
+    resources: ["configmaps"]
+    verbs: ["get", "list", "watch"]
+  # This is needed by k8schain to support fetching pull secrets attached to pod specs
+  # or their service accounts.  If pull secrets aren't used, the "secrets" below can
+  # be safely dropped, but the logic will fetch the service account to check for pull
+  # secrets.
+  - apiGroups: [""]
+    resources: ["serviceaccounts", "secrets"]
+    verbs: ["get"]
+
+# Copyright 2022 Chainguard, Inc.
+# SPDX-License-Identifier: Apache-2.0
+---
+apiVersion: gulfstream.dev/v1alpha1
+kind: Controller
+metadata:
+  name: continuous-verification
+spec:
+  delegate: https://cosigned-continuous-verification.enforce.dev
+  primary:
+    version: v1
+    resource: configmaps
+    namespace: cosign-system
+    match:
+      - fieldPath: metadata.name
+        value: config-image-policies
+  authorized:
+    # These are required by k8schain
+    - resources: [serviceaccounts, secrets]
+      verbs: [get]
+      allowCrossNamespace: true
+
+# Copyright 2022 Chainguard, Inc.
+# SPDX-License-Identifier: Apache-2.0
+---
+apiVersion: gulfstream.dev/v1alpha1
+kind: Controller
+metadata:
+  name: policy-compiler
+spec:
+  delegate: https://policy-compiler.enforce.dev
+  primary:
+    group: policy.sigstore.dev
+    version: v1alpha1
+    resource: clusterimagepolicies
+  secondary:
+    # We double this up to prepare for things to cut over,
+    # so that this isn't a breaking change, but this isn't
+    # used yet.
+    - group: policy.sigstore.dev
+      version: v1beta1
+      resource: clusterimagepolicies
+    - version: v1
+      resource: configmaps
+      namespace: cosign-system
+    - version: v1
+      resource: secrets
+      relationship: Reference
+      namespace: cosign-system
+  authorized:
+    # K8s events
+    - resources: [events]
+      verbs: [create]
+  # Resync when this changes
+  configs:
+    - namespace: cosign-system
+      name: config-image-policies
+      onChanged: Resync
+
+# Copyright 2021 Chainguard, Inc.
+# SPDX-License-Identifier: Apache-2.0
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: cosigned-image-policies-configmaps-rbac
+  namespace: cosign-system
+roleRef:
+  kind: ClusterRole
+  name: cosigned-image-policies-rbac
+  apiGroup: rbac.authorization.k8s.io
+subjects:
+  - kind: ServiceAccount
+    name: controller
+    namespace: gulfstream
+
+# Copyright 2022 Chainguard, Inc.
+# SPDX-License-Identifier: Apache-2.0
+---
+apiVersion: admissionregistration.k8s.io/v1
+kind: MutatingWebhookConfiguration
+metadata:
+  name: policy-defaulting.webhook.policy.sigstore.dev
+webhooks:
+  - admissionReviewVersions: ["v1"]
+    clientConfig:
+      service:
+        namespace: gulfstream
+        name: webhook
+        # This is where the MCP will host this webhook (see Webhook below)
+        path: /admissionwebhooks/cosigned-policy-defaulting
+    failurePolicy: Fail
+    sideEffects: None
+    name: policy-defaulting.webhook.policy.sigstore.dev
+    rules:
+      - apiGroups: ["policy.sigstore.dev"]
+        apiVersions: ["v1alpha1"]
+        operations: ["CREATE", "UPDATE"]
+        resources: ["clusterimagepolicies/*"]
+---
+apiVersion: gulfstream.dev/v1alpha1
+kind: Webhook
+metadata:
+  name: cosigned-policy-defaulting
+spec:
+  ref:
+    apiVersion: admissionregistration.k8s.io/v1
+    kind: MutatingWebhookConfiguration
+    name: policy-defaulting.webhook.policy.sigstore.dev
+  delegate: https://policy-defaulting.enforce.dev
+
+# Copyright 2022 Chainguard, Inc.
+# SPDX-License-Identifier: Apache-2.0
+---
+apiVersion: admissionregistration.k8s.io/v1
+kind: ValidatingWebhookConfiguration
+metadata:
+  name: policy-validation.webhook.policy.sigstore.dev
+webhooks:
+  - admissionReviewVersions: ["v1"]
+    clientConfig:
+      service:
+        namespace: gulfstream
+        name: webhook
+        # This is where the MCP will host this webhook (see Webhook below)
+        path: /admissionwebhooks/cosigned-policy-validation
+    failurePolicy: Fail
+    sideEffects: None
+    name: policy-validation.webhook.policy.sigstore.dev
+    rules:
+      - apiGroups: ["policy.sigstore.dev"]
+        apiVersions: ["v1alpha1"]
+        operations: ["CREATE", "UPDATE"]
+        resources: ["clusterimagepolicies/*"]
+---
+apiVersion: gulfstream.dev/v1alpha1
+kind: Webhook
+metadata:
+  name: cosigned-policy-validation
+spec:
+  ref:
+    apiVersion: admissionregistration.k8s.io/v1
+    kind: ValidatingWebhookConfiguration
+    name: policy-validation.webhook.policy.sigstore.dev
+  # The admission webhook uses these to customize its behavior.
+  delegate: https://policy-validation.enforce.dev
+
+# Copyright 2022 Chainguard, Inc.
+# SPDX-License-Identifier: Apache-2.0
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: config-image-policies
+  namespace: cosign-system
+  annotations:
+    # Have continuous verification constantly checking for new containers
+    # subject to policies and reflecting their status to the API.
+    gulfstream.dev/resync: "10s"
+# This is entirely populated by the controller, and if we include the
+# _example we see log lines about failing to parse it.
+
+# Copyright 2022 Chainguard, Inc.
+# SPDX-License-Identifier: Apache-2.0
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: config-policy-controller
+  namespace: cosign-system
+
+# Copyright 2021 Chainguard, Inc.
+# SPDX-License-Identifier: Apache-2.0
+---
+apiVersion: gulfstream.dev/v1alpha1
+kind: Webhook
+metadata:
+  name: policy-conversion
+spec:
+  ref:
+    apiVersion: apiextensions.k8s.io/v1
+    kind: CustomResourceDefinition
+    name: clusterimagepolicies.policy.sigstore.dev
+  delegate: https://policy-conversion.enforce.dev
+
+# Copyright 2021 Chainguard, Inc.
+# SPDX-License-Identifier: Apache-2.0
+---
+apiVersion: admissionregistration.k8s.io/v1
+kind: MutatingWebhookConfiguration
+metadata:
+  name: enforcer.chainguard.dev
+webhooks:
+  - name: enforcer.chainguard.dev
+    namespaceSelector:
+      # The webhook should only apply to things that opt-in
+      matchExpressions:
+        - key: policy.sigstore.dev/include
+          operator: In
+          values: ["true"]
+    rules:
+      - apiGroups: [""]
+        apiVersions: ["v1"]
+        operations: ["CREATE", "UPDATE"]
+        resources: ["pods"]
+      - apiGroups: ["apps"]
+        apiVersions: ["v1"]
+        operations: ["CREATE", "UPDATE"]
+        resources: ["deployments", "replicasets", "statefulsets", "daemonsets"]
+      - apiGroups: ["batch"]
+        apiVersions: ["v1", "v1beta1"]
+        operations: ["CREATE", "UPDATE"]
+        resources: ["jobs", "cronjobs"]
+    admissionReviewVersions: [v1]
+    clientConfig:
+      service:
+        namespace: gulfstream
+        name: webhook
+        # This is where the MCP will host this webhook (see Webhook below)
+        path: /admissionwebhooks/cosigned-resolution
+    failurePolicy: Fail
+    reinvocationPolicy: IfNeeded
+    sideEffects: None
+    timeoutSeconds: 25
+---
+apiVersion: gulfstream.dev/v1alpha1
+kind: Webhook
+metadata:
+  name: cosigned-resolution
+spec:
+  ref:
+    apiVersion: admissionregistration.k8s.io/v1
+    kind: MutatingWebhookConfiguration
+    name: enforcer.chainguard.dev
+  authorized:
+    # These resources are accessed as part of image resolution.
+    - resources: [serviceaccounts, secrets]
+      verbs: [get]
+      # Allow access to the verification key in cosign-system
+      allowCrossNamespace: true
+  # This contains the serialized ClusterImagePolicy that are used for validating
+  # admission.
+  configs:
+    - namespace: cosign-system
+      name: config-image-policies
+    - namespace: cosign-system
+      name: config-policy-controller
+  delegate: https://cosigned-resolution.enforce.dev
+---
+# Copyright 2022 The Sigstore Authors.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     https://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: clusterimagepolicies.policy.sigstore.dev
+spec:
+  conversion:
+    strategy: Webhook
+    webhook:
+      conversionReviewVersions:
+        - v1beta1
+        - v1
+      clientConfig:
+        service:
+          name: webhook
+          namespace: gulfstream
+          path: /conversionwebhooks/policy-conversion
+  group: policy.sigstore.dev
+  names:
+    kind: ClusterImagePolicy
+    plural: clusterimagepolicies
+    singular: clusterimagepolicy
+    categories:
+      - all
+      - sigstore
+    shortNames:
+      - cip
+  scope: Cluster
+  versions:
+    - name: v1alpha1
+      served: true
+      storage: true
+      schema:
+        openAPIV3Schema:
+          type: object
+          properties:
+            spec:
+              description: Spec holds the desired state of the ClusterImagePolicy (from the client).
+              type: object
+              properties:
+                authorities:
+                  description: Authorities defines the rules for discovering and validating signatures.
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      attestations:
+                        description: Attestations is a list of individual attestations for this authority, once the signature for this authority has been verified.
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            name:
+                              description: Name of the attestation. These can then be referenced at the CIP level policy.
+                              type: string
+                            policy:
+                              description: Policy defines all of the matching signatures, and all of the matching attestations (whose attestations are verified).
+                              type: object
+                              properties:
+                                configMapRef:
+                                  description: ConfigMapRef defines the reference to a configMap with the policy definition.
+                                  type: object
+                                  properties:
+                                    name:
+                                      description: Name is unique within a namespace to reference a configmap resource.
+                                      type: string
+                                    namespace:
+                                      description: Namespace defines the space within which the configmap name must be unique.
+                                      type: string
+                                data:
+                                  description: Data contains the policy definition.
+                                  type: string
+                                type:
+                                  description: Which kind of policy this is, currently only rego or cue are supported. Furthermore, only cue is tested :)
+                                  type: string
+                                url:
+                                  description: URL to the policy data.
+                                  type: string
+                            predicateType:
+                              description: PredicateType defines which predicate type to verify. Matches cosign verify-attestation options.
+                              type: string
+                      ctlog:
+                        description: CTLog sets the configuration to verify the authority against a Rekor instance.
+                        type: object
+                        properties:
+                          url:
+                            description: URL sets the url to the rekor instance (by default the public rekor.sigstore.dev)
+                            type: string
+                      key:
+                        description: Key defines the type of key to validate the image.
+                        type: object
+                        properties:
+                          data:
+                            description: Data contains the inline public key.
+                            type: string
+                          hashAlgorithm:
+                            description: HashAlgorithm always defaults to sha256 if the algorithm hasn't been explicitly set
+                            type: string
+                          kms:
+                            description: KMS contains the KMS url of the public key Supported formats differ based on the KMS system used.
+                            type: string
+                          secretRef:
+                            description: SecretRef sets a reference to a secret with the key.
+                            type: object
+                            properties:
+                              name:
+                                description: name is unique within a namespace to reference a secret resource.
+                                type: string
+                              namespace:
+                                description: namespace defines the space within which the secret name must be unique.
+                                type: string
+                      keyless:
+                        description: Keyless sets the configuration to verify the authority against a Fulcio instance.
+                        type: object
+                        properties:
+                          ca-cert:
+                            description: CACert sets a reference to CA certificate
+                            type: object
+                            properties:
+                              data:
+                                description: Data contains the inline public key.
+                                type: string
+                              hashAlgorithm:
+                                description: HashAlgorithm always defaults to sha256 if the algorithm hasn't been explicitly set
+                                type: string
+                              kms:
+                                description: KMS contains the KMS url of the public key Supported formats differ based on the KMS system used.
+                                type: string
+                              secretRef:
+                                description: SecretRef sets a reference to a secret with the key.
+                                type: object
+                                properties:
+                                  name:
+                                    description: name is unique within a namespace to reference a secret resource.
+                                    type: string
+                                  namespace:
+                                    description: namespace defines the space within which the secret name must be unique.
+                                    type: string
+                          identities:
+                            description: Identities sets a list of identities.
+                            type: array
+                            items:
+                              type: object
+                              properties:
+                                issuer:
+                                  description: Issuer defines the issuer for this identity.
+                                  type: string
+                                issuerRegExp:
+                                  description: IssuerRegExp specifies a regular expression to match the issuer for this identity.
+                                  type: string
+                                subject:
+                                  description: Subject defines the subject for this identity.
+                                  type: string
+                                subjectRegExp:
+                                  description: SubjectRegExp specifies a regular expression to match the subject for this identity.
+                                  type: string
+                          url:
+                            description: URL defines a url to the keyless instance.
+                            type: string
+                      name:
+                        description: Name is the name for this authority. Used by the CIP Policy validator to be able to reference matching signature or attestation verifications. If not specified, the name will be authority-<index in array>
+                        type: string
+                      source:
+                        description: Sources sets the configuration to specify the sources from where to consume the signatures.
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            oci:
+                              description: OCI defines the registry from where to pull the signatures.
+                              type: string
+                            signaturePullSecrets:
+                              description: SignaturePullSecrets is an optional list of references to secrets in the same namespace as the deploying resource for pulling any of the signatures used by this Source.
+                              type: array
+                              items:
+                                type: object
+                                properties:
+                                  name:
+                                    description: 'Name of the referent. More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names'
+                                    type: string
+                      static:
+                        description: Static specifies that signatures / attestations are not validated but instead a static policy is applied against matching images.
+                        type: object
+                        properties:
+                          action:
+                            description: Action defines how to handle a matching policy.
+                            type: string
+                images:
+                  description: Images defines the patterns of image names that should be subject to this policy.
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      glob:
+                        description: Glob defines a globbing pattern.
+                        type: string
+                match:
+                  description: Match allows selecting resources based on their properties.
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      group:
+                        type: string
+                      resource:
+                        type: string
+                      selector:
+                        type: object
+                        properties:
+                          matchExpressions:
+                            description: matchExpressions is a list of label selector requirements. The requirements are ANDed.
+                            type: array
+                            items:
+                              type: object
+                              properties:
+                                key:
+                                  description: key is the label key that the selector applies to.
+                                  type: string
+                                operator:
+                                  description: operator represents a key's relationship to a set of values. Valid operators are In, NotIn, Exists and DoesNotExist.
+                                  type: string
+                                values:
+                                  description: values is an array of string values. If the operator is In or NotIn, the values array must be non-empty. If the operator is Exists or DoesNotExist, the values array must be empty. This array is replaced during a strategic merge patch.
+                                  type: array
+                                  items:
+                                    type: string
+                          matchLabels:
+                            description: matchLabels is a map of {key,value} pairs. A single {key,value} in the matchLabels map is equivalent to an element of matchExpressions, whose key field is "key", the operator is "In", and the values array contains only "value". The requirements are ANDed.
+                            type: object
+                            x-kubernetes-preserve-unknown-fields: true
+                      version:
+                        type: string
+                mode:
+                  description: Mode controls whether a failing policy will be rejected (not admitted), or if errors are converted to Warnings. enforce - Reject (default) warn - allow but warn
+                  type: string
+                policy:
+                  description: Policy is an optional policy that can be applied against all the successfully validated Authorities. If no authorities pass, this does not even get evaluated, as the Policy is considered failed.
+                  type: object
+                  properties:
+                    configMapRef:
+                      description: ConfigMapRef defines the reference to a configMap with the policy definition.
+                      type: object
+                      properties:
+                        name:
+                          description: Name is unique within a namespace to reference a configmap resource.
+                          type: string
+                        namespace:
+                          description: Namespace defines the space within which the configmap name must be unique.
+                          type: string
+                    data:
+                      description: Data contains the policy definition.
+                      type: string
+                    type:
+                      description: Which kind of policy this is, currently only rego or cue are supported. Furthermore, only cue is tested :)
+                      type: string
+                    url:
+                      description: URL to the policy data.
+                      type: string
+    - name: v1beta1
+      served: true
+      storage: false
+      schema:
+        openAPIV3Schema:
+          type: object
+          properties:
+            spec:
+              description: Spec holds the desired state of the ClusterImagePolicy (from the client).
+              type: object
+              properties:
+                authorities:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      attestations:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            name:
+                              description: Name of the attestation. These can then be referenced at the CIP level policy.
+                              type: string
+                            policy:
+                              type: object
+                              properties:
+                                configMapRef:
+                                  type: object
+                                  properties:
+                                    name:
+                                      description: Name is unique within a namespace to reference a configmap resource.
+                                      type: string
+                                    namespace:
+                                      description: Namespace defines the space within which the configmap name must be unique.
+                                      type: string
+                                data:
+                                  type: string
+                                type:
+                                  description: Which kind of policy this is, currently only rego or cue are supported. Furthermore, only cue is tested :)
+                                  type: string
+                                url:
+                                  type: string
+                            predicateType:
+                              description: Which predicate type to verify. Matches cosign verify-attestation options.
+                              type: string
+                      ctlog:
+                        type: object
+                        properties:
+                          url:
+                            type: string
+                      key:
+                        type: object
+                        properties:
+                          data:
+                            description: Data contains the inline public key
+                            type: string
+                          hashAlgorithm:
+                            description: HashAlgorithm always defaults to sha256 if the algorithm hasn't been explicitly set
+                            type: string
+                          kms:
+                            description: KMS contains the KMS url of the public key
+                            type: string
+                          secretRef:
+                            type: object
+                            properties:
+                              name:
+                                description: Name is unique within a namespace to reference a secret resource.
+                                type: string
+                              namespace:
+                                description: Namespace defines the space within which the secret name must be unique.
+                                type: string
+                      keyless:
+                        type: object
+                        properties:
+                          ca-cert:
+                            type: object
+                            properties:
+                              data:
+                                description: Data contains the inline public key
+                                type: string
+                              hashAlgorithm:
+                                description: HashAlgorithm always defaults to sha256 if the algorithm hasn't been explicitly set
+                                type: string
+                              kms:
+                                description: KMS contains the KMS url of the public key
+                                type: string
+                              secretRef:
+                                type: object
+                                properties:
+                                  name:
+                                    description: Name is unique within a namespace to reference a secret resource.
+                                    type: string
+                                  namespace:
+                                    description: Namespace defines the space within which the secret name must be unique.
+                                    type: string
+                          identities:
+                            type: array
+                            items:
+                              type: object
+                              properties:
+                                issuer:
+                                  type: string
+                                issuerRegExp:
+                                  type: string
+                                subject:
+                                  type: string
+                                subjectRegExp:
+                                  type: string
+                          url:
+                            type: string
+                      name:
+                        description: Name is the name for this authority. Used by the CIP Policy validator to be able to reference matching signature or attestation verifications. If not specified, the name will be authority-<index in array>
+                        type: string
+                      source:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            oci:
+                              type: string
+                            signaturePullSecrets:
+                              description: SignaturePullSecrets is an optional list of references to secrets in the same namespace as the deploying resource for pulling any of the signatures used by this Source.
+                              type: array
+                              items:
+                                type: object
+                                properties:
+                                  name:
+                                    description: 'Name of the referent. More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names'
+                                    type: string
+                      static:
+                        type: object
+                        properties:
+                          action:
+                            description: Action defines how to handle a matching policy.
+                            type: string
+                images:
+                  description: Images defines the patterns of image names that should be subject to this policy.
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      glob:
+                        description: Glob defines a globbing pattern.
+                        type: string
+                match:
+                  description: Match allows selecting resources based on their properties.
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      group:
+                        type: string
+                      resource:
+                        type: string
+                      selector:
+                        type: object
+                        properties:
+                          matchExpressions:
+                            description: matchExpressions is a list of label selector requirements. The requirements are ANDed.
+                            type: array
+                            items:
+                              type: object
+                              properties:
+                                key:
+                                  description: key is the label key that the selector applies to.
+                                  type: string
+                                operator:
+                                  description: operator represents a key's relationship to a set of values. Valid operators are In, NotIn, Exists and DoesNotExist.
+                                  type: string
+                                values:
+                                  description: values is an array of string values. If the operator is In or NotIn, the values array must be non-empty. If the operator is Exists or DoesNotExist, the values array must be empty. This array is replaced during a strategic merge patch.
+                                  type: array
+                                  items:
+                                    type: string
+                          matchLabels:
+                            description: matchLabels is a map of {key,value} pairs. A single {key,value} in the matchLabels map is equivalent to an element of matchExpressions, whose key field is "key", the operator is "In", and the values array contains only "value". The requirements are ANDed.
+                            type: object
+                            x-kubernetes-preserve-unknown-fields: true
+                      version:
+                        type: string
+                mode:
+                  description: Mode controls whether a failing policy will be rejected (not admitted), or if errors are converted to Warnings. enforce - Reject (default) warn - allow but warn
+                  type: string
+                policy:
+                  description: Policy is an optional policy that can be applied against all the successfully validated Authorities. If no authorities pass, this does not even get evaluated, as the Policy is considered failed.
+                  type: object
+                  properties:
+                    configMapRef:
+                      type: object
+                      properties:
+                        name:
+                          description: Name is unique within a namespace to reference a configmap resource.
+                          type: string
+                        namespace:
+                          description: Namespace defines the space within which the configmap name must be unique.
+                          type: string
+                    data:
+                      type: string
+                    type:
+                      description: Which kind of policy this is, currently only rego or cue are supported. Furthermore, only cue is tested :)
+                      type: string
+                    url:
+                      type: string
+
+# Copyright 2021 Chainguard, Inc.
+# SPDX-License-Identifier: Apache-2.0
+---
+apiVersion: admissionregistration.k8s.io/v1
+kind: ValidatingWebhookConfiguration
+metadata:
+  name: enforcer.chainguard.dev
+webhooks:
+  - name: enforcer.chainguard.dev
+    namespaceSelector:
+      # The webhook should only apply to things that opt-in
+      matchExpressions:
+        - key: policy.sigstore.dev/include
+          operator: In
+          values: ["true"]
+    rules:
+      - apiGroups: [""]
+        apiVersions: ["v1"]
+        operations: ["CREATE", "UPDATE"]
+        resources: ["pods"]
+      - apiGroups: ["apps"]
+        apiVersions: ["v1"]
+        operations: ["CREATE", "UPDATE"]
+        resources: ["deployments", "replicasets", "statefulsets", "daemonsets"]
+      - apiGroups: ["batch"]
+        apiVersions: ["v1", "v1beta1"]
+        operations: ["CREATE", "UPDATE"]
+        resources: ["jobs", "cronjobs"]
+    admissionReviewVersions: [v1]
+    clientConfig:
+      service:
+        namespace: gulfstream
+        name: webhook
+        # This is where the MCP will host this webhook (see Webhook below)
+        path: /admissionwebhooks/cosigned-verification
+    failurePolicy: Fail
+    sideEffects: None
+    timeoutSeconds: 25
+---
+apiVersion: gulfstream.dev/v1alpha1
+kind: Webhook
+metadata:
+  name: cosigned-verification
+spec:
+  ref:
+    apiVersion: admissionregistration.k8s.io/v1
+    kind: ValidatingWebhookConfiguration
+    name: enforcer.chainguard.dev
+  authorized:
+    # These resources are accessed as part of image resolution.
+    - resources: [serviceaccounts, secrets]
+      verbs: [get]
+      # Allow access to the verification key in cosign-system
+      allowCrossNamespace: true
+  # This contains the serialized ClusterImagePolicy that are used for validating
+  # admission.
+  configs:
+    - namespace: cosign-system
+      name: config-image-policies
+    - namespace: cosign-system
+      name: config-policy-controller
+  delegate: https://cosigned-verification.enforce.dev
+---
+
+
+---
+# Copyright 2022 Chainguard, Inc.
+# SPDX-License-Identifier: Apache-2.0
+
+kind: ClusterRole
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: policy-distribution-clusterrole-rbac
+rules:
+  - apiGroups: [""]
+    resources: ["secrets"]
+    verbs: ["get", "list", "watch", "create", "patch", "delete", "deletecollection"]
+
+# Copyright 2022 Chainguard, Inc.
+# SPDX-License-Identifier: Apache-2.0
+---
+# RBAC granting the gulfstream controller's aggregated cluster role access to the resources needed
+kind: ClusterRole
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: policy-distribution-rbac
+  labels:
+    # Aggregate into the gulfstream's cluster role.
+    gulfstream.dev/controller: "true"
+rules:
+  # We reconcile the gulfstream namespace.
+  - apiGroups: [""]
+    resources: ["namespaces"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: ["policy.sigstore.dev"]
+    resources: ["clusterimagepolicies"]
+    verbs: ["get", "list", "watch", "create", "patch", "delete", "deletecollection"]
+
+# Copyright 2022 Chainguard, Inc.
+# SPDX-License-Identifier: Apache-2.0
+---
+apiVersion: gulfstream.dev/v1alpha1
+kind: Controller
+metadata:
+  name: policy-distribution
+spec:
+  primary:
+    version: v1
+    resource: namespaces
+    resyncPeriod: "10s"
+    match:
+      - fieldPath: metadata.name
+        value: gulfstream
+  secondary:
+    - version: v1
+      resource: secrets
+      namespace: cosign-system
+    - group: policy.sigstore.dev
+      version: v1alpha1
+      resource: clusterimagepolicies
+    # We double this up to prepare for things to cut over,
+    # so that this isn't a breaking change, but this isn't
+    # used yet.
+    - group: policy.sigstore.dev
+      version: v1beta1
+      resource: clusterimagepolicies
+  authorized:
+    # K8s events
+    - resources: [events]
+      verbs: [create]
+  delegate: https://policy-distribution.enforce.dev
+
+# Copyright 2022 Chainguard, Inc.
+# SPDX-License-Identifier: Apache-2.0
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: policy-distribution-secrets-rbac
+  namespace: cosign-system
+roleRef:
+  kind: ClusterRole
+  name: policy-distribution-clusterrole-rbac
+  apiGroup: rbac.authorization.k8s.io
+subjects:
+  - kind: ServiceAccount
+    name: controller
+    namespace: gulfstream
+---
+
+
+---
