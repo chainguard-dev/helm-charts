@@ -1,0 +1,97 @@
+{
+    "$schema": "https://json-schema.org/draft/2019-09/schema",
+    "$id": "http://example.com/example.json",
+    "type": "object",
+    "default": {},
+    "title": "Root Schema",
+    "required": [
+        "inviteCode",
+        "auth"
+    ],
+    "properties": {
+        "inviteCode": {
+            "type": "string",
+            "default": "",
+            "title": "The inviteCode Schema",
+            "examples": [
+                ""
+            ]
+        },
+        "auth": {
+            "type": "object",
+            "default": {},
+            "title": "The auth Schema",
+            "required": [
+                "gcp"
+            ],
+            "properties": {
+                "gcp": {
+                    "type": "object",
+                    "default": {},
+                    "title": "The gcp Schema",
+                    "required": [
+                        "serviceAccount"
+                    ],
+                    "properties": {
+                        "serviceAccount": {
+                            "type": "object",
+                            "default": {},
+                            "title": "The serviceAccount Schema",
+                            "required": [
+                                "email",
+                                "key"
+                            ],
+                            "properties": {
+                                "email": {
+                                    "type": "string",
+                                    "default": "",
+                                    "title": "The email Schema",
+                                    "examples": [
+                                        ""
+                                    ]
+                                },
+                                "key": {
+                                    "type": "string",
+                                    "default": "",
+                                    "title": "The key Schema",
+                                    "examples": [
+                                        ""
+                                    ]
+                                }
+                            },
+                            "examples": [{
+                                "email": "",
+                                "key": ""
+                            }]
+                        }
+                    },
+                    "examples": [{
+                        "serviceAccount": {
+                            "email": "",
+                            "key": ""
+                        }
+                    }]
+                }
+            },
+            "examples": [{
+                "gcp": {
+                    "serviceAccount": {
+                        "email": "",
+                        "key": ""
+                    }
+                }
+            }]
+        }
+    },
+    "examples": [{
+        "inviteCode": "",
+        "auth": {
+            "gcp": {
+                "serviceAccount": {
+                    "email": "",
+                    "key": ""
+                }
+            }
+        }
+    }]
+}
