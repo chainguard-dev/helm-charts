@@ -57,19 +57,13 @@ jobs:
 
       - name: Upload Helm Charts to Rekor
         run: |
-          for pkg in .cr-release-packages/*; do
-            if [ -z "${pkg}:-}" ]; then
-              break
-            fi
-            helm sigstore upload --keyring=/home/runner/.gnupg/secring.gpg "${pkg}"
+          for chart in `find .cr-release-packages -name '*.tgz' -print`; do
+            helm sigstore upload --keyring=/home/runner/.gnupg/secring.gpg ${chart}
           done
 
       - name: Push Charts as OCI to GHCR
         run: |
-          for pkg in .cr-release-packages/*; do
-            if [ -z "${pkg:-}" ]; then
-              break
-            fi
-            helm push "${pkg}" "oci://ghcr.io/${GITHUB_REPOSITORY_OWNER}/charts"
+          for chart in `find .cr-release-packages -name '*.tgz' -print`; do
+            helm push ${chart} oci://ghcr.io/${GITHUB_REPOSITORY}
           done
 
