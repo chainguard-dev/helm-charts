@@ -5,11 +5,12 @@ name: enforce-agent
 description: |
   A helm chart for Chainguard's Enforce Agent.
 type: application
-version: 0.0.1
-appVersion: v0.0.2
+version: 0.0.2
+appVersion: v0.1.18
 keywords:
   - chainguard
 home: https://chainguard.dev
+icon: "https://avatars.githubusercontent.com/u/87436699?s=200&v=4"
 maintainers:
   - name: The Chainguard Team
     url: https://chainguard.dev

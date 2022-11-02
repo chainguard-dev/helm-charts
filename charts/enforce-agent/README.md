@@ -37,4 +37,4 @@ helm uninstall [RELEASE_NAME]
 |-----|------|---------|-------------|
 | auth.gcp.serviceAccount.email | string | `""` | Email of the GCP Service Account. |
 | auth.gcp.serviceAccount.key | string | `""` | The GCP Service Account key.json base64 encoded. This can be generated with: `gcloud iam service-accounts keys create key.json --iam-account=$NAME@@PROJECT.iam.gserviceaccount.com`. |
-| inviteCode | string | `"abc"` | Invite code assigned to group where clusters will be registered. This can be generated with: `chainctl iam invite create $GROUP --cluster -ojson | jq -r .code` |
+| inviteCode | string | `""` | Invite code assigned to group where clusters will be registered. This can be generated with: `chainctl iam invite create $GROUP --cluster -ojson | jq -r .code` |
