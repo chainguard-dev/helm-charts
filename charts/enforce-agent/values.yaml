@@ -1,7 +1,18 @@
 # Copyright 2022 Chainguard, Inc.
 # SPDX-License-Identifier: Apache-2.0
 
-# Invite code assigned to group where clusters will be registered
-# This can be retrieved with the following chainctl command:
-#   $(chainctl iam invite create $GROUP --cluster -ojson | jq -r .code)
+# -- Invite code assigned to group where clusters will be registered.
+# This can be generated with: `chainctl iam invite create $GROUP --cluster -ojson | jq -r .code`
 inviteCode:
+
+# Optional alternative auth methods
+auth:
+  gcp:
+    # Use a pre-provisioned GCP Service Account, requires both "email" and "key" to be set
+    serviceAccount:
+      # -- Email of the GCP Service Account.
+      email: ""
+
+      # -- The GCP Service Account key.json base64 encoded.
+      # This can be generated with: `gcloud iam service-accounts keys create key.json --iam-account=$NAME@@PROJECT.iam.gserviceaccount.com`.
+      key: ""
