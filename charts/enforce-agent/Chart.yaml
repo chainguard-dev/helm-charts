@@ -1,11 +1,12 @@
 # Copyright 2022 Chainguard, Inc.
 # SPDX-License-Identifier: Apache-2.0
+
 apiVersion: v2
 name: enforce-agent
 description: |
   A helm chart for Chainguard's Enforce Agent.
 type: application
-version: 0.0.2
+version: 0.0.3
 appVersion: v0.1.18
 keywords:
   - chainguard
