@@ -5,8 +5,10 @@ apiVersion: v2
 name: enforce-agent
 description: |
   A helm chart for Chainguard's Enforce Agent.
+
+  Documentation for the chart can be found [here](https://edu.chainguard.dev/chainguard/chainguard-enforce/chainguard-enforce-kubernetes/alternative-installation-methods/).
 type: application
-version: 0.0.3
+version: 0.0.4
 appVersion: v0.1.18
 keywords:
   - chainguard
