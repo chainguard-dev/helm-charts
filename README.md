@@ -13,7 +13,7 @@ Charts are available in the following formats:
 The following command can be used to add the chart repository:
 
 ```shell
-helm repo add chainguard https://chainguard.github.io/helm-charts
+helm repo add chainguard https://chainguard-dev.github.io/helm-charts
 helm repo update
 ```
 
