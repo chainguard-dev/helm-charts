@@ -37,7 +37,7 @@ cat security/pubkey.gpg | gpg --import --batch
 ```
 
 Once the public key has been imported, charts can be verified using the
-`helm verify` and/or `helm tekton verify` commands.
+`helm verify` and/or `helm chainguard verify` commands.
 
 > Note: The public key that was used to sign a particular chart may not be
 identical to the public key on the `main` branch. Each chart release has an
