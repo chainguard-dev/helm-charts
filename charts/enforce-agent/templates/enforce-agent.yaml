@@ -137,7 +137,7 @@ spec:
   ports:
     - name: https-webhook
       port: 443
-      targetPort: 8443
+      targetPort: 443
   selector:
     app: meta-controlplane
 # Copyright 2021 Chainguard, Inc.
@@ -302,10 +302,18 @@ spec:
                     app: meta-controlplane
                 topologyKey: "topology.kubernetes.io/zone"
               weight: 100
+      # Allow this pod to bind to "low" ports without root / capabilities.
+      # As of Kubernetes 1.22 this is considered a "safe" sysctl according
+      # to the upstream documentation:
+      # https://kubernetes.io/docs/tasks/administer-cluster/sysctl-cluster/#enabling-unsafe-sysctls
+      securityContext:
+        sysctls:
+          - name: net.ipv4.ip_unprivileged_port_start
+            value: "0"
       serviceAccountName: controller
       containers:
         - name: controller
-          image: us.gcr.io/prod-enforce-fabc/controlplane@sha256:fbf7ce263314a32196b74eade6ff3a02a1edeffd6e1ab96fff941e2d25f83f6b
+          image: us.gcr.io/prod-enforce-fabc/controlplane@sha256:a4e1ce9034ae3a822bee6d8ea7c18a0d709035688b74e142a0c7a1e5e24243ff
           resources:
             requests:
               cpu: 50m
@@ -315,12 +323,12 @@ spec:
               memory: 1000Mi
           ports:
             - name: https-webhook
-              containerPort: 8443
+              containerPort: 443
           readinessProbe:
             periodSeconds: 1
             httpGet:
               scheme: HTTPS
-              port: 8443
+              port: 443
               httpHeaders:
                 - name: k-kubelet-probe
                   value: "meta-controlplane"
@@ -329,7 +337,7 @@ spec:
             failureThreshold: 50
             httpGet:
               scheme: HTTPS
-              port: 8443
+              port: 443
               httpHeaders:
                 - name: k-kubelet-probe
                   value: "meta-controlplane"
@@ -364,7 +372,12 @@ spec:
             runAsNonRoot: true
             capabilities:
               drop:
-                - all
+                - ALL
+                # TODO: Once NET_BIND_SERVICE is sufficient to bind low ports,
+                # switch to adding that capability here.  See also:
+                # https://kubernetes.io/docs/concepts/security/pod-security-standards/
+                # add:
+                # - NET_BIND_SERVICE
           volumeMounts:
             # To remove the STS process, replace this with oidc-token,
             # drop the sidecar, and the sts-token volume below.
@@ -374,7 +387,7 @@ spec:
           # The STS container is responsible for normalizing federated OIDC
           # tokens by using `chainctl auth login [...] --refresh` with the
           # "sts-in" identity token.
-          image: us.gcr.io/prod-enforce-fabc/chainctl@sha256:290011e7fb9e6e4e5cd80c6e13b4487e2230b45465c5072126c402c8addb876e
+          image: us.gcr.io/prod-enforce-fabc/chainctl@sha256:21412e9f6ebc946be551502e88177ff3e57ca77f3590287548134f259286b1be
           readinessProbe:
             exec:
               command:
@@ -429,7 +442,7 @@ spec:
             runAsNonRoot: true
             capabilities:
               drop:
-                - all
+                - ALL
           volumeMounts:
             - mountPath: /var/run/sts-in
               name: oidc-token
@@ -457,10 +470,6 @@ spec:
             items:
               - key: gcp.json
                 path: gcp.json
----
-{}
----
-{}
 ---
 # Copyright 2022 Chainguard, Inc.
 # SPDX-License-Identifier: Apache-2.0
@@ -582,12 +591,6 @@ rules:
   - apiGroups: ["apps"]
     resources: ["daemonsets", "deployments", "replicasets", "statefulsets"]
     verbs: ["get", "list", "watch"]
----
-{}
----
-{}
-# Copyright 2021 Chainguard, Inc.
-# SPDX-License-Identifier: Apache-2.0
 ---
 apiVersion: v1
 kind: Namespace
@@ -964,10 +967,6 @@ spec:
       name: config-policy-controller
   delegate: https://cosigned-verification.enforce.dev
 ---
-{}
-# Copyright 2022 Chainguard, Inc.
-# SPDX-License-Identifier: Apache-2.0
----
 kind: ClusterRole
 apiVersion: rbac.authorization.k8s.io/v1
 metadata:
@@ -1044,7 +1043,3 @@ subjects:
   - kind: ServiceAccount
     name: controller
     namespace: gulfstream
----
-{}
----
-{}
