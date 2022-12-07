@@ -313,7 +313,7 @@ spec:
       serviceAccountName: controller
       containers:
         - name: controller
-          image: us.gcr.io/prod-enforce-fabc/controlplane@sha256:a4e1ce9034ae3a822bee6d8ea7c18a0d709035688b74e142a0c7a1e5e24243ff
+          image: us.gcr.io/prod-enforce-fabc/controlplane@sha256:e16f5afc54f60a8a5e11c1677f2a2bc2b23a5227062db6a2a40007f2f9fdcfd7
           resources:
             requests:
               cpu: 50m
@@ -387,7 +387,7 @@ spec:
           # The STS container is responsible for normalizing federated OIDC
           # tokens by using `chainctl auth login [...] --refresh` with the
           # "sts-in" identity token.
-          image: us.gcr.io/prod-enforce-fabc/chainctl@sha256:21412e9f6ebc946be551502e88177ff3e57ca77f3590287548134f259286b1be
+          image: us.gcr.io/prod-enforce-fabc/chainctl@sha256:c4abc8400a3f233e7e66a4073239d04d1f1d631a7a7c74ab406ed8aadb5c5d42
           readinessProbe:
             exec:
               command:
@@ -422,6 +422,20 @@ spec:
                 secretKeyRef:
                   name: mcp-creds
                   key: identity-uid
+                  optional: true
+            # Allow users to specify name/description when a cluster first
+            # registers itself with an invite code.
+            - name: CHAINGUARD_CLUSTER_NAME
+              valueFrom:
+                secretKeyRef:
+                  name: mcp-creds
+                  key: cluster-name
+                  optional: true
+            - name: CHAINGUARD_CLUSTER_DESCRIPTION
+              valueFrom:
+                secretKeyRef:
+                  name: mcp-creds
+                  key: cluster-description
                   optional: true
             # If we mount GCP credentials, this is where we will mount them.
             - name: GOOGLE_APPLICATION_CREDENTIALS
@@ -579,6 +593,9 @@ apiVersion: rbac.authorization.k8s.io/v1
 metadata:
   name: eots
   labels:
+    # Don't install this for agentless where we use IAM
+    # for access instead.
+    agentless.chainguard.dev/skip: "true"
     # Aggregate into the gulfstream's cluster role.
     gulfstream.dev/controller: "true"
 rules:
@@ -612,6 +629,10 @@ kind: ClusterRole
 apiVersion: rbac.authorization.k8s.io/v1
 metadata:
   name: cosigned-image-policies-rbac
+  labels:
+    # Don't install this for agentless where we use IAM
+    # for access instead.
+    agentless.chainguard.dev/skip: "true"
 rules:
   - apiGroups: [""]
     resources: ["configmaps", "secrets"]
@@ -628,6 +649,9 @@ apiVersion: rbac.authorization.k8s.io/v1
 metadata:
   name: cosigned-rbac
   labels:
+    # Don't install this for agentless where we use IAM
+    # for access instead.
+    agentless.chainguard.dev/skip: "true"
     # Aggregate into the gulfstream's cluster role.
     gulfstream.dev/controller: "true"
 rules:
@@ -731,6 +755,10 @@ kind: RoleBinding
 metadata:
   name: cosigned-image-policies-configmaps-rbac
   namespace: cosign-system
+  labels:
+    # Don't install this for agentless where we use IAM
+    # for access instead.
+    agentless.chainguard.dev/skip: "true"
 roleRef:
   kind: ClusterRole
   name: cosigned-image-policies-rbac
@@ -971,6 +999,10 @@ kind: ClusterRole
 apiVersion: rbac.authorization.k8s.io/v1
 metadata:
   name: policy-distribution-clusterrole-rbac
+  labels:
+    # Don't install this for agentless where we use IAM
+    # for access instead.
+    agentless.chainguard.dev/skip: "true"
 rules:
   - apiGroups: [""]
     resources: ["secrets"]
@@ -984,6 +1016,9 @@ apiVersion: rbac.authorization.k8s.io/v1
 metadata:
   name: policy-distribution-rbac
   labels:
+    # Don't install this for agentless where we use IAM
+    # for access instead.
+    agentless.chainguard.dev/skip: "true"
     # Aggregate into the gulfstream's cluster role.
     gulfstream.dev/controller: "true"
 rules:
@@ -1008,7 +1043,9 @@ spec:
     resyncPeriod: "10s"
     match:
       - fieldPath: metadata.name
-        value: gulfstream
+        # This namespace is installed when ClusterImagePolicy CRDs is,
+        # so it should always exist.
+        value: cosign-system
   secondary:
     - version: v1
       resource: secrets
@@ -1035,6 +1072,10 @@ kind: RoleBinding
 metadata:
   name: policy-distribution-secrets-rbac
   namespace: cosign-system
+  labels:
+    # Don't install this for agentless where we use IAM
+    # for access instead.
+    agentless.chainguard.dev/skip: "true"
 roleRef:
   kind: ClusterRole
   name: policy-distribution-clusterrole-rbac
