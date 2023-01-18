@@ -1,5 +1,6 @@
 # Copyright 2021 Chainguard, Inc.
 # SPDX-License-Identifier: Apache-2.0
+
 apiVersion: v1
 kind: Namespace
 metadata:
@@ -313,7 +314,7 @@ spec:
       serviceAccountName: controller
       containers:
         - name: controller
-          image: us.gcr.io/prod-enforce-fabc/controlplane@sha256:e16f5afc54f60a8a5e11c1677f2a2bc2b23a5227062db6a2a40007f2f9fdcfd7
+          image: us.gcr.io/prod-enforce-fabc/controlplane@sha256:6cb9104e0dac6994b56ecccc691aedbb05ab9b31094c11c8be7d6975ab5395fc
           resources:
             requests:
               cpu: 50m
@@ -387,7 +388,7 @@ spec:
           # The STS container is responsible for normalizing federated OIDC
           # tokens by using `chainctl auth login [...] --refresh` with the
           # "sts-in" identity token.
-          image: us.gcr.io/prod-enforce-fabc/chainctl@sha256:c4abc8400a3f233e7e66a4073239d04d1f1d631a7a7c74ab406ed8aadb5c5d42
+          image: us.gcr.io/prod-enforce-fabc/chainctl@sha256:7dcfa33ca07836503f60b6f004f02f67d083017b21e6a31dce501fab338a6938
           readinessProbe:
             exec:
               command:
@@ -485,8 +486,6 @@ spec:
               - key: gcp.json
                 path: gcp.json
 ---
-# Copyright 2022 Chainguard, Inc.
-# SPDX-License-Identifier: Apache-2.0
 apiVersion: gulfstream.dev/v1alpha1
 kind: Controller
 metadata:
@@ -582,6 +581,72 @@ spec:
     version: v1
     resource: nodes
   delegate: https://eots-omni.enforce.dev
+---
+apiVersion: gulfstream.dev/v1alpha1
+kind: Controller
+metadata:
+  name: eots-ksvc
+spec:
+  primary:
+    group: serving.knative.dev
+    version: v1
+    resource: services
+  delegate: https://eots-omni.enforce.dev
+---
+apiVersion: gulfstream.dev/v1alpha1
+kind: Controller
+metadata:
+  name: eots-kcfg
+spec:
+  primary:
+    group: serving.knative.dev
+    version: v1
+    resource: configurations
+  delegate: https://eots-omni.enforce.dev
+---
+apiVersion: gulfstream.dev/v1alpha1
+kind: Controller
+metadata:
+  name: eots-krev
+spec:
+  primary:
+    group: serving.knative.dev
+    version: v1
+    resource: revisions
+  delegate: https://eots-omni.enforce.dev
+---
+apiVersion: gulfstream.dev/v1alpha1
+kind: Controller
+metadata:
+  name: eots-tekton-pipelinerun
+spec:
+  primary:
+    group: tekton.dev
+    version: v1
+    resource: pipelineruns
+  delegate: https://eots-omni.enforce.dev
+---
+apiVersion: gulfstream.dev/v1alpha1
+kind: Controller
+metadata:
+  name: eots-tekton-taskrun
+spec:
+  primary:
+    group: tekton.dev
+    version: v1
+    resource: taskruns
+  delegate: https://eots-omni.enforce.dev
+---
+apiVersion: gulfstream.dev/v1alpha1
+kind: Controller
+metadata:
+  name: eots-tekton-run
+spec:
+  primary:
+    group: tekton.dev
+    version: v1alpha1
+    resource: run
+  delegate: https://eots-omni.enforce.dev
 # Copyright 2021 Chainguard, Inc.
 # SPDX-License-Identifier: Apache-2.0
 ---
@@ -607,6 +672,12 @@ rules:
     verbs: ["get", "list", "watch"]
   - apiGroups: ["apps"]
     resources: ["daemonsets", "deployments", "replicasets", "statefulsets"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: ["serving.knative.dev"]
+    resources: ["services", "configurations", "revisions"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: ["tekton.dev"]
+    resources: ["pipelineruns", "taskruns", "runs"]
     verbs: ["get", "list", "watch"]
 ---
 apiVersion: v1
@@ -834,6 +905,10 @@ spec:
     apiVersion: admissionregistration.k8s.io/v1
     kind: ValidatingWebhookConfiguration
     name: policy-validation.webhook.policy.sigstore.dev
+  # This configMap contains the configuration settings of the PolicyController.
+  configs:
+    - namespace: cosign-system
+      name: config-policy-controller
   # The admission webhook uses these to customize its behavior.
   delegate: https://policy-validation.enforce.dev
 # Copyright 2022 Chainguard, Inc.
@@ -951,7 +1026,7 @@ webhooks:
       - apiGroups: [""]
         apiVersions: ["v1"]
         operations: ["CREATE", "UPDATE"]
-        resources: ["pods"]
+        resources: ["pods", "pods/ephemeralcontainers"]
       - apiGroups: ["apps"]
         apiVersions: ["v1"]
         operations: ["CREATE", "UPDATE"]
