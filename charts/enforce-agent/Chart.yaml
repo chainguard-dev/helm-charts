@@ -8,8 +8,8 @@ description: |
 
   Documentation for the chart can be found [here](https://edu.chainguard.dev/chainguard/chainguard-enforce/chainguard-enforce-kubernetes/alternative-installation-methods/).
 type: application
-version: 0.0.11
-appVersion: v0.1.62
+version: 0.0.12
+appVersion: v0.1.66
 keywords:
   - chainguard
 home: https://chainguard.dev
