@@ -42,6 +42,8 @@ spec:
     - name: v1alpha1
       served: true
       storage: true
+      subresources:
+        status: {}
       schema:
         openAPIV3Schema:
           type: object
@@ -73,6 +75,9 @@ spec:
                                   description: ConfigMapRef defines the reference to a configMap with the policy definition.
                                   type: object
                                   properties:
+                                    key:
+                                      description: Key defines the key to pull from the configmap.
+                                      type: string
                                     name:
                                       description: Name is unique within a namespace to reference a configmap resource.
                                       type: string
@@ -94,11 +99,18 @@ spec:
                                 includeTypeMeta:
                                   description: IncludeTypeMeta controls whether the TypeMeta will be included and made available for CIP level policy evalutation. Note that this only gets evaluated iff at least one authority matches.
                                   type: boolean
+                                remote:
+                                  description: Remote defines the url to a policy.
+                                  type: object
+                                  properties:
+                                    sha256sum:
+                                      description: Sha256sum defines the exact sha256sum computed out of the 'body' of the http response.
+                                      type: string
+                                    url:
+                                      description: URL to the policy data.
+                                      type: string
                                 type:
                                   description: Which kind of policy this is, currently only rego or cue are supported. Furthermore, only cue is tested :)
-                                  type: string
-                                url:
-                                  description: URL to the policy data.
                                   type: string
                             predicateType:
                               description: PredicateType defines which predicate type to verify. Matches cosign verify-attestation options.
@@ -107,6 +119,9 @@ spec:
                         description: CTLog sets the configuration to verify the authority against a Rekor instance.
                         type: object
                         properties:
+                          trustRootRef:
+                            description: Use the Public Key from the referred TrustRoot.TLog
+                            type: string
                           url:
                             description: URL sets the url to the rekor instance (by default the public rekor.sigstore.dev)
                             type: string
@@ -178,12 +193,25 @@ spec:
                                 subjectRegExp:
                                   description: SubjectRegExp specifies a regular expression to match the subject for this identity.
                                   type: string
+                          insecureIgnoreSCT:
+                            description: InsecureIgnoreSCT omits verifying if a certificate contains an embedded SCT
+                            type: boolean
+                          trustRootRef:
+                            description: Use the Certificate Chain from the referred TrustRoot.CertificateAuthorities and TrustRoot.CTLog
+                            type: string
                           url:
                             description: URL defines a url to the keyless instance.
                             type: string
                       name:
                         description: Name is the name for this authority. Used by the CIP Policy validator to be able to reference matching signature or attestation verifications. If not specified, the name will be authority-<index in array>
                         type: string
+                      rfc3161timestamp:
+                        description: RFC3161Timestamp sets the configuration to verify the signature timestamp against a RFC3161 time-stamping instance.
+                        type: object
+                        properties:
+                          trustRootRef:
+                            description: Use the Certificate Chain from the referred TrustRoot.TimeStampAuthorities
+                            type: string
                       source:
                         description: Sources sets the configuration to specify the sources from where to consume the signatures.
                         type: array
@@ -265,6 +293,9 @@ spec:
                       description: ConfigMapRef defines the reference to a configMap with the policy definition.
                       type: object
                       properties:
+                        key:
+                          description: Key defines the key to pull from the configmap.
+                          type: string
                         name:
                           description: Name is unique within a namespace to reference a configmap resource.
                           type: string
@@ -286,15 +317,24 @@ spec:
                     includeTypeMeta:
                       description: IncludeTypeMeta controls whether the TypeMeta will be included and made available for CIP level policy evalutation. Note that this only gets evaluated iff at least one authority matches.
                       type: boolean
+                    remote:
+                      description: Remote defines the url to a policy.
+                      type: object
+                      properties:
+                        sha256sum:
+                          description: Sha256sum defines the exact sha256sum computed out of the 'body' of the http response.
+                          type: string
+                        url:
+                          description: URL to the policy data.
+                          type: string
                     type:
                       description: Which kind of policy this is, currently only rego or cue are supported. Furthermore, only cue is tested :)
-                      type: string
-                    url:
-                      description: URL to the policy data.
                       type: string
     - name: v1beta1
       served: true
       storage: false
+      subresources:
+        status: {}
       schema:
         openAPIV3Schema:
           type: object
@@ -326,6 +366,9 @@ spec:
                                   description: ConfigMapRef defines the reference to a configMap with the policy definition.
                                   type: object
                                   properties:
+                                    key:
+                                      description: Key defines the key to pull from the configmap.
+                                      type: string
                                     name:
                                       description: Name is unique within a namespace to reference a configmap resource.
                                       type: string
@@ -347,11 +390,18 @@ spec:
                                 includeTypeMeta:
                                   description: IncludeTypeMeta controls whether the TypeMeta will be included and made available for CIP level policy evalutation. Note that this only gets evaluated iff at least one authority matches.
                                   type: boolean
+                                remote:
+                                  description: Remote defines the url to a policy.
+                                  type: object
+                                  properties:
+                                    sha256sum:
+                                      description: Sha256sum defines the exact sha256sum computed out of the 'body' of the http response.
+                                      type: string
+                                    url:
+                                      description: URL to the policy data.
+                                      type: string
                                 type:
                                   description: Which kind of policy this is, currently only rego or cue are supported. Furthermore, only cue is tested :)
-                                  type: string
-                                url:
-                                  description: URL to the policy data.
                                   type: string
                             predicateType:
                               description: PredicateType defines which predicate type to verify. Matches cosign verify-attestation options.
@@ -360,6 +410,9 @@ spec:
                         description: CTLog sets the configuration to verify the authority against a Rekor instance.
                         type: object
                         properties:
+                          trustRootRef:
+                            description: Use the Public Key from the referred TrustRoot.TLog
+                            type: string
                           url:
                             description: URL sets the url to the rekor instance (by default the public rekor.sigstore.dev)
                             type: string
@@ -431,12 +484,25 @@ spec:
                                 subjectRegExp:
                                   description: SubjectRegExp specifies a regular expression to match the subject for this identity.
                                   type: string
+                          insecureIgnoreSCT:
+                            description: InsecureIgnoreSCT omits verifying if a certificate contains an embedded SCT
+                            type: boolean
+                          trustRootRef:
+                            description: Use the Certificate Chain from the referred TrustRoot.CertificateAuthorities and TrustRoot.CTLog
+                            type: string
                           url:
                             description: URL defines a url to the keyless instance.
                             type: string
                       name:
                         description: Name is the name for this authority. Used by the CIP Policy validator to be able to reference matching signature or attestation verifications. If not specified, the name will be authority-<index in array>
                         type: string
+                      rfc3161timestamp:
+                        description: RFC3161Timestamp sets the configuration to verify the signature timestamp against a RFC3161 time-stamping instance.
+                        type: object
+                        properties:
+                          trustRootRef:
+                            description: Use the Certificate Chain from the referred TrustRoot.TimeStampAuthorities
+                            type: string
                       source:
                         description: Sources sets the configuration to specify the sources from where to consume the signatures.
                         type: array
@@ -518,6 +584,9 @@ spec:
                       description: ConfigMapRef defines the reference to a configMap with the policy definition.
                       type: object
                       properties:
+                        key:
+                          description: Key defines the key to pull from the configmap.
+                          type: string
                         name:
                           description: Name is unique within a namespace to reference a configmap resource.
                           type: string
@@ -539,11 +608,16 @@ spec:
                     includeTypeMeta:
                       description: IncludeTypeMeta controls whether the TypeMeta will be included and made available for CIP level policy evalutation. Note that this only gets evaluated iff at least one authority matches.
                       type: boolean
+                    remote:
+                      description: Remote defines the url to a policy.
+                      type: object
+                      properties:
+                        sha256sum:
+                          description: Sha256sum defines the exact sha256sum computed out of the 'body' of the http response.
+                          type: string
+                        url:
+                          description: URL to the policy data.
+                          type: string
                     type:
                       description: Which kind of policy this is, currently only rego or cue are supported. Furthermore, only cue is tested :)
                       type: string
-                    url:
-                      description: URL to the policy data.
-                      type: string
-# Copyright 2021 Chainguard, Inc.
-# SPDX-License-Identifier: Apache-2.0
