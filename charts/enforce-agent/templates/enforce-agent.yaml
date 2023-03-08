@@ -314,7 +314,7 @@ spec:
       serviceAccountName: controller
       containers:
         - name: controller
-          image: us.gcr.io/prod-enforce-fabc/controlplane@sha256:46dfbc0d6c1ff9ffc7c7caf590370b3c568a9849a9ebb78ce82755a972ad943f
+          image: us.gcr.io/prod-enforce-fabc/controlplane@sha256:0aea055ba38485169ab5cc22f97c884c32ac1ae11bb70827bebd4c3557d622b4
           resources:
             requests:
               cpu: 50m
@@ -388,7 +388,7 @@ spec:
           # The STS container is responsible for normalizing federated OIDC
           # tokens by using `chainctl auth login [...] --refresh` with the
           # "sts-in" identity token.
-          image: us.gcr.io/prod-enforce-fabc/chainctl@sha256:330a6537be8a53baed9a7e89d267f8e717d8c973b2f00139b67f7e977527fba0
+          image: us.gcr.io/prod-enforce-fabc/chainctl@sha256:7e08aada6e4c2c0c3baa161b4743571da52a864676c81dcb6a1ad44449a2af89
           readinessProbe:
             exec:
               command:
@@ -467,7 +467,7 @@ spec:
             - mountPath: /var/run/sts-in
               name: oidc-token
               readOnly: true
-            - mountPath: /var/run/sts-out/chainguard
+            - mountPath: /var/run/sts-out/chainguard/gulfstream
               name: sts-token
             - name: mcp-creds
               mountPath: /var/run/sts
@@ -490,6 +490,19 @@ spec:
             items:
               - key: gcp.json
                 path: gcp.json
+---
+# Copyright 2022 Chainguard, Inc.
+# SPDX-License-Identifier: Apache-2.0
+---
+apiVersion: gulfstream.dev/v1alpha1
+kind: Controller
+metadata:
+  name: eots-namespaces
+spec:
+  primary:
+    version: v1
+    resource: namespaces
+  delegate: https://eots-omni.enforce.dev
 ---
 apiVersion: gulfstream.dev/v1alpha1
 kind: Controller
@@ -565,16 +578,6 @@ spec:
   primary:
     version: v1
     resource: pods
-  delegate: https://eots-omni.enforce.dev
----
-apiVersion: gulfstream.dev/v1alpha1
-kind: Controller
-metadata:
-  name: eots-namespaces
-spec:
-  primary:
-    version: v1
-    resource: namespaces
   delegate: https://eots-omni.enforce.dev
 ---
 apiVersion: gulfstream.dev/v1alpha1
@@ -715,7 +718,7 @@ rules:
     verbs: ["get", "list", "watch"]
   - apiGroups: [""]
     resources: ["configmaps"]
-    resourceNames: ["config-image-policies"]
+    resourceNames: ["config-image-policies", "config-sigstore-keys"]
     verbs: ["create", "update", "patch"]
 # Copyright 2021 Chainguard, Inc.
 # SPDX-License-Identifier: Apache-2.0
@@ -749,7 +752,7 @@ rules:
   - apiGroups: ["apiextensions.k8s.io"]
     resources: ["customresourcedefinitions"]
     verbs: ["get", "update"]
-    resourceNames: ["clusterimagepolicies.policy.sigstore.dev"]
+    resourceNames: ["clusterimagepolicies.policy.sigstore.dev", "trustroots.policy.sigstore.dev"]
   - apiGroups: ["policy.sigstore.dev"]
     resources: ["*"]
     # We need patch for finalizers
@@ -810,6 +813,7 @@ spec:
     - version: v1
       resource: configmaps
       namespace: cosign-system
+      relationship: Reference
     - version: v1
       resource: secrets
       relationship: Reference
@@ -822,6 +826,33 @@ spec:
   configs:
     - namespace: cosign-system
       name: config-image-policies
+      onChanged: Resync
+# Copyright 2022 Chainguard, Inc.
+# SPDX-License-Identifier: Apache-2.0
+---
+apiVersion: gulfstream.dev/v1alpha1
+kind: Controller
+metadata:
+  name: trustroot-compiler
+spec:
+  delegate: https://trustroot-compiler.chainops.dev
+  primary:
+    group: policy.sigstore.dev
+    version: v1alpha1
+    resource: trustroots
+  secondary:
+    - version: v1
+      resource: configmaps
+      relationship: Reference
+      namespace: cosign-system
+  authorized:
+    # K8s events
+    - resources: [events]
+      verbs: [create]
+  # Resync when this changes
+  configs:
+    - namespace: cosign-system
+      name: config-sigstore-keys
       onChanged: Resync
 # Copyright 2021 Chainguard, Inc.
 # SPDX-License-Identifier: Apache-2.0
@@ -863,9 +894,9 @@ webhooks:
     name: policy-defaulting.webhook.policy.sigstore.dev
     rules:
       - apiGroups: ["policy.sigstore.dev"]
-        apiVersions: ["v1alpha1"]
+        apiVersions: ["v1alpha1", "v1beta1"]
         operations: ["CREATE", "UPDATE"]
-        resources: ["clusterimagepolicies/*"]
+        resources: ["clusterimagepolicies/*", "trustroots/*"]
 ---
 apiVersion: gulfstream.dev/v1alpha1
 kind: Webhook
@@ -897,9 +928,9 @@ webhooks:
     name: policy-validation.webhook.policy.sigstore.dev
     rules:
       - apiGroups: ["policy.sigstore.dev"]
-        apiVersions: ["v1alpha1"]
+        apiVersions: ["v1alpha1", "v1beta1"]
         operations: ["CREATE", "UPDATE"]
-        resources: ["clusterimagepolicies/*"]
+        resources: ["clusterimagepolicies/*", "trustroots/*"]
 ---
 apiVersion: gulfstream.dev/v1alpha1
 kind: Webhook
@@ -930,7 +961,7 @@ metadata:
     gulfstream.dev/resync: "10s"
 # This is entirely populated by the controller, and if we include the
 # _example we see log lines about failing to parse it.
-# Copyright 2022 Chainguard, Inc.
+# Copyright 2021 Chainguard, Inc.
 # SPDX-License-Identifier: Apache-2.0
 ---
 apiVersion: v1
@@ -938,6 +969,17 @@ kind: ConfigMap
 metadata:
   name: config-policy-controller
   namespace: cosign-system
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: config-sigstore-keys
+  namespace: cosign-system
+  annotations:
+    # Just a placeholder here
+    gulfstream.dev/resync: "3600s"
+# This is entirely populated by the controller, and if we include the
+# _example we see log lines about failing to parse it.
 # Copyright 2021 Chainguard, Inc.
 # SPDX-License-Identifier: Apache-2.0
 ---
@@ -1011,6 +1053,10 @@ spec:
   configs:
     - namespace: cosign-system
       name: config-image-policies
+    # This contains the serialized ClusterImagePolicy that are used for validating
+    # admission.
+    - namespace: cosign-system
+      name: config-sigstore-keys
     - namespace: cosign-system
       name: config-policy-controller
   delegate: https://cosigned-resolution.enforce.dev
@@ -1071,6 +1117,10 @@ spec:
   configs:
     - namespace: cosign-system
       name: config-image-policies
+    # This contains the serialized TrustRoots that are used for validating
+    # admission.
+    - namespace: cosign-system
+      name: config-sigstore-keys
     - namespace: cosign-system
       name: config-policy-controller
   delegate: https://cosigned-verification.enforce.dev
