@@ -1,3 +1,4 @@
+Name: E2E
 on:
   workflow_run:
     workflows:
@@ -9,9 +10,21 @@ jobs:
   e2e:
     runs-on: ubuntu-latest
 
+    permissions:
+      statuses: write
+
     if: ${{ github.event.workflow_run.conclusion == 'success' }}
 
     steps:
+      - name: Run the action # You would run your tests before this using the output to set state/desc
+        uses: Sibz/github-status-action@v1
+        with:
+          authToken: ${{secrets.GITHUB_TOKEN}}
+          context: "E2E Tests"
+          description: "Running E2E tests"
+          state: 'pending'
+          sha: ${{ github.event.workflow_run.head_sha }}
+
       - uses: actions/checkout@93ea575cb5d8a053eaa0ac8fa3b40d7e05a33cc8 # v3
         with:
           ref: ${{ github.event.workflow_run.head_branch }}
@@ -41,7 +54,7 @@ jobs:
           identity: ${{ secrets.CHAINCTL_IDENTITY }}
 
       - run: |
-          INVITE_CODE=$(chainctl iam invite create $GROUP --cluster -ojson | jq -r '.code')
+          INVITE_CODE=$(chainctl iam invite create ${{ secrets.CHAINCTL_E2E_GROUP }} --cluster -ojson | jq -r '.code')
           yq -i '.inviteCode = ${INVITE_CODE}' charts/enforce-agent/ci/ci-values.yaml
 
       - name: Create KIND Cluster
@@ -49,3 +62,23 @@ jobs:
 
       - name: Run chart-testing (install)
         run: ct install --config ct.yaml
+
+      - name: Run the action # You would run your tests before this using the output to set state/desc
+        if: ${{ success() }}
+        uses: Sibz/github-status-action@v1
+        with:
+          authToken: ${{secrets.GITHUB_TOKEN}}
+          context: "E2E Tests"
+          description: "passed!"
+          state: 'success'
+          sha: ${{ github.event.workflow_run.head_sha }}
+
+      - name: Run the action # You would run your tests before this using the output to set state/desc
+        if: ${{ failure() }}
+        uses: Sibz/github-status-action@v1
+        with:
+          authToken: ${{secrets.GITHUB_TOKEN}}
+          context: "E2E Tests"
+          description: "E2E failed!"
+          state: 'failure'
+          sha: ${{ github.event.workflow_run.head_sha }}
