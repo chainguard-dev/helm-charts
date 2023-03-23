@@ -1,4 +1,4 @@
-Name: E2E
+name: E2E
 on:
   workflow_run:
     workflows:
