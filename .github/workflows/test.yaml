@@ -1,4 +1,4 @@
-name: Lint and Test Charts
+name: Lint Charts
 
 on:
   pull_request:
@@ -6,35 +6,27 @@ on:
       - "charts/**"
 
 jobs:
-  test:
+  lint:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@93ea575cb5d8a053eaa0ac8fa3b40d7e05a33cc8 # pin@v3
+        uses: actions/checkout@93ea575cb5d8a053eaa0ac8fa3b40d7e05a33cc8 # v3
         with:
           fetch-depth: 0
 
-      - uses: sigstore/cosign-installer@9becc617647dfa20ae7b1151972e9b3a2c338a2b # pin@v2.5.0
+      - uses: sigstore/cosign-installer@9becc617647dfa20ae7b1151972e9b3a2c338a2b # v2.5.0
 
       - name: Set up Helm
-        uses: azure/setup-helm@f382f75448129b3be48f8121b9857be18d815a82 # pin@v3.4
+        uses: azure/setup-helm@f382f75448129b3be48f8121b9857be18d815a82 # v3.4
         with:
-          version: v3.10.0
+          version: v3.11.2
 
-      - uses: actions/setup-python@13ae5bb136fac2878aff31522b9efb785519f984 # pin@v4
+      - uses: actions/setup-python@13ae5bb136fac2878aff31522b9efb785519f984 # v4
         with:
-          python-version: 3.7
+          python-version: 3.8
 
       - name: Set up chart-testing
-        uses: helm/chart-testing-action@afea100a513515fbd68b0e72a7bb0ae34cb62aec # pin@v2.3.0
+        uses: helm/chart-testing-action@afea100a513515fbd68b0e72a7bb0ae34cb62aec # v2.3.0
 
       - name: Run chart-testing (lint)
         run: ct lint --config ct.yaml
-
-      # TODO: Wire testing up
-      # ref: https://github.com/chainguard-dev/helm-charts/issues/8
-      # - name: Create KIND Cluster
-      #   uses: helm/kind-action@9e8295d178de23cbfbd8fa16cf844eec1d773a07 # pin@v1.4.0
-      #
-      # - name: Run chart-testing (install)
-      #   run: ct install --config ct-install.yaml
