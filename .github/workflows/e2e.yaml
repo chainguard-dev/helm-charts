@@ -28,7 +28,7 @@ jobs:
           state: 'pending'
           sha: ${{ github.event.workflow_run.head_sha }}
 
-      - uses: actions/checkout@8f4b7f84864484a7bf31766abe9204da3cbe65b3 # v3
+      - uses: actions/checkout@8f4b7f84864484a7bf31766abe9204da3cbe65b3 # v3.5.0
         with:
           ref: ${{ github.event.workflow_run.head_branch }}
 
