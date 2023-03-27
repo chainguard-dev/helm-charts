@@ -1,97 +1,41 @@
 {
-    "$schema": "https://json-schema.org/draft/2019-09/schema",
-    "$id": "http://example.com/example.json",
+    "$schema": "http://json-schema.org/schema#",
     "type": "object",
-    "default": {},
-    "title": "Root Schema",
-    "required": [
-        "inviteCode",
-        "auth"
-    ],
     "properties": {
-        "inviteCode": {
-            "type": "string",
-            "default": "",
-            "title": "The inviteCode Schema",
-            "examples": [
-                ""
-            ]
-        },
         "auth": {
             "type": "object",
-            "default": {},
-            "title": "The auth Schema",
-            "required": [
-                "gcp"
-            ],
             "properties": {
                 "gcp": {
                     "type": "object",
-                    "default": {},
-                    "title": "The gcp Schema",
-                    "required": [
-                        "serviceAccount"
-                    ],
                     "properties": {
                         "serviceAccount": {
                             "type": "object",
-                            "default": {},
-                            "title": "The serviceAccount Schema",
-                            "required": [
-                                "email",
-                                "key"
-                            ],
                             "properties": {
                                 "email": {
-                                    "type": "string",
-                                    "default": "",
-                                    "title": "The email Schema",
-                                    "examples": [
-                                        ""
-                                    ]
+                                    "type": "string"
                                 },
                                 "key": {
-                                    "type": "string",
-                                    "default": "",
-                                    "title": "The key Schema",
-                                    "examples": [
-                                        ""
-                                    ]
+                                    "type": "string"
                                 }
-                            },
-                            "examples": [{
-                                "email": "",
-                                "key": ""
-                            }]
+                            }
                         }
-                    },
-                    "examples": [{
-                        "serviceAccount": {
-                            "email": "",
-                            "key": ""
-                        }
-                    }]
-                }
-            },
-            "examples": [{
-                "gcp": {
-                    "serviceAccount": {
-                        "email": "",
-                        "key": ""
                     }
                 }
-            }]
-        }
-    },
-    "examples": [{
-        "inviteCode": "",
-        "auth": {
-            "gcp": {
-                "serviceAccount": {
-                    "email": "",
-                    "key": ""
+            }
+        },
+        "enforcerOptions": {
+            "type": "object",
+            "properties": {
+                "enableCIPCache": {
+                    "type": "boolean"
+                },
+                "webhookFailOpen": {
+                    "type": "boolean"
                 }
             }
+        },
+        "inviteCode": {
+            "type": "string"
         }
-    }]
+    }
 }
