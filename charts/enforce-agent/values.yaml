@@ -16,3 +16,7 @@ auth:
       # -- The GCP Service Account key.json base64 encoded.
       # This can be generated with: `gcloud iam service-accounts keys create key.json --iam-account=$NAME@@PROJECT.iam.gserviceaccount.com`.
       key: ""
+
+enforcerOptions:
+  webhookFailOpen: false
+  enableCIPCache: false
