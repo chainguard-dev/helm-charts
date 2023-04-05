@@ -16,3 +16,6 @@ data:
   gcp.json: {{ .key | quote }}
   {{- end }}
   {{- end }}
+  {{- if .Values.clusterName }}
+  cluster-name: {{ .Values.clusterName | b64enc | quote }}
+  {{- end }}

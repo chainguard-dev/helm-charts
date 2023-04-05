@@ -1,6 +1,7 @@
 # Copyright 2022 Chainguard, Inc.
 # SPDX-License-Identifier: Apache-2.0
 
+clusterName: ""
 # -- Invite code assigned to group where clusters will be registered.
 # This can be generated with: `chainctl iam invite create $GROUP --cluster -ojson | jq -r .code`
 inviteCode: ""
