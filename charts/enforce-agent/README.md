@@ -2,7 +2,7 @@
 
 <!-- This README.md is generated. Please edit README.md.gotmpl -->
 
-![Version: 0.0.18](https://img.shields.io/badge/Version-0.0.18-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: v0.1.83](https://img.shields.io/badge/AppVersion-v0.1.83-informational?style=flat-square)
+![Version: 0.0.25](https://img.shields.io/badge/Version-0.0.25-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: v0.1.96](https://img.shields.io/badge/AppVersion-v0.1.96-informational?style=flat-square)
 
 A helm chart for Chainguard's Enforce Agent.
 
@@ -39,4 +39,7 @@ helm uninstall [RELEASE_NAME]
 |-----|------|---------|-------------|
 | auth.gcp.serviceAccount.email | string | `""` | Email of the GCP Service Account. |
 | auth.gcp.serviceAccount.key | string | `""` | The GCP Service Account key.json base64 encoded. This can be generated with: `gcloud iam service-accounts keys create key.json --iam-account=$NAME@@PROJECT.iam.gserviceaccount.com`. |
+| clusterName | string | `""` |  |
+| enforcerOptions.enableCIPCache | bool | `false` |  |
+| enforcerOptions.webhookFailOpen | bool | `false` |  |
 | inviteCode | string | `""` | Invite code assigned to group where clusters will be registered. This can be generated with: `chainctl iam invite create $GROUP --cluster -ojson | jq -r .code` |
