@@ -33,7 +33,7 @@ jobs:
           ref: ${{ github.event.workflow_run.head_branch }}
 
       - name: Install yq
-        uses: mikefarah/yq@d5bbe5bea564beb9c7f30471e63d51cac95d1304 # v4.33.2
+        uses: mikefarah/yq@d2f1ae9db722ac6b0702dd7f8a08dd22722d8c2d # v4.33.3
 
       - name: Set up Helm
         uses: azure/setup-helm@5119fcb9089d432beecbf79bb2c7915207344b78 # v3.5
