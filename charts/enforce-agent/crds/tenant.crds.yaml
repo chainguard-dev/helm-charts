@@ -219,7 +219,7 @@ spec:
                           type: object
                           properties:
                             oci:
-                              description: OCI defines the registry from where to pull the signatures.
+                              description: OCI defines the registry from where to pull the signature / attestations.
                               type: string
                             signaturePullSecrets:
                               description: SignaturePullSecrets is an optional list of references to secrets in the same namespace as the deploying resource for pulling any of the signatures used by this Source.
@@ -230,12 +230,18 @@ spec:
                                   name:
                                     description: 'Name of the referent. More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names'
                                     type: string
+                            tagPrefix:
+                              description: TagPrefix is an optional prefix that signature and attestations have. This is the 'tag based discovery' and in the future once references are fully supported that should likely be the preferred way to handle these.
+                              type: string
                       static:
                         description: Static specifies that signatures / attestations are not validated but instead a static policy is applied against matching images.
                         type: object
                         properties:
                           action:
                             description: Action defines how to handle a matching policy.
+                            type: string
+                          message:
+                            description: For fail actions, emit an optional custom message
                             type: string
                 images:
                   description: Images defines the patterns of image names that should be subject to this policy.
@@ -330,6 +336,45 @@ spec:
                     type:
                       description: Which kind of policy this is, currently only rego or cue are supported. Furthermore, only cue is tested :)
                       type: string
+            status:
+              description: Status represents the current state of the ClusterImagePolicy. This data may be out of date.
+              type: object
+              properties:
+                annotations:
+                  description: Annotations is additional Status fields for the Resource to save some additional State as well as convey more information to the user. This is roughly akin to Annotations on any k8s resource, just the reconciler conveying richer information outwards.
+                  type: object
+                  x-kubernetes-preserve-unknown-fields: true
+                conditions:
+                  description: Conditions the latest available observations of a resource's current state.
+                  type: array
+                  items:
+                    type: object
+                    required:
+                      - type
+                      - status
+                    properties:
+                      lastTransitionTime:
+                        description: LastTransitionTime is the last time the condition transitioned from one status to another. We use VolatileTime in place of metav1.Time to exclude this from creating equality.Semantic differences (all other things held constant).
+                        type: string
+                      message:
+                        description: A human readable message indicating details about the transition.
+                        type: string
+                      reason:
+                        description: The reason for the condition's last transition.
+                        type: string
+                      severity:
+                        description: Severity with which to treat failures of this type of condition. When this is not specified, it defaults to Error.
+                        type: string
+                      status:
+                        description: Status of the condition, one of True, False, Unknown.
+                        type: string
+                      type:
+                        description: Type of condition.
+                        type: string
+                observedGeneration:
+                  description: ObservedGeneration is the 'Generation' of the Service that was last processed by the controller.
+                  type: integer
+                  format: int64
     - name: v1beta1
       served: true
       storage: false
@@ -510,7 +555,7 @@ spec:
                           type: object
                           properties:
                             oci:
-                              description: OCI defines the registry from where to pull the signatures.
+                              description: OCI defines the registry from where to pull the signature / attestations.
                               type: string
                             signaturePullSecrets:
                               description: SignaturePullSecrets is an optional list of references to secrets in the same namespace as the deploying resource for pulling any of the signatures used by this Source.
@@ -521,12 +566,18 @@ spec:
                                   name:
                                     description: 'Name of the referent. More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names'
                                     type: string
+                            tagPrefix:
+                              description: TagPrefix is an optional prefix that signature and attestations have. This is the 'tag based discovery' and in the future once references are fully supported that should likely be the preferred way to handle these.
+                              type: string
                       static:
                         description: Static specifies that signatures / attestations are not validated but instead a static policy is applied against matching images.
                         type: object
                         properties:
                           action:
                             description: Action defines how to handle a matching policy.
+                            type: string
+                          message:
+                            description: For fail actions, emit an optional custom message
                             type: string
                 images:
                   description: Images defines the patterns of image names that should be subject to this policy.
@@ -621,7 +672,59 @@ spec:
                     type:
                       description: Which kind of policy this is, currently only rego or cue are supported. Furthermore, only cue is tested :)
                       type: string
+            status:
+              description: Status represents the current state of the ClusterImagePolicy. This data may be out of date.
+              type: object
+              properties:
+                annotations:
+                  description: Annotations is additional Status fields for the Resource to save some additional State as well as convey more information to the user. This is roughly akin to Annotations on any k8s resource, just the reconciler conveying richer information outwards.
+                  type: object
+                  x-kubernetes-preserve-unknown-fields: true
+                conditions:
+                  description: Conditions the latest available observations of a resource's current state.
+                  type: array
+                  items:
+                    type: object
+                    required:
+                      - type
+                      - status
+                    properties:
+                      lastTransitionTime:
+                        description: LastTransitionTime is the last time the condition transitioned from one status to another. We use VolatileTime in place of metav1.Time to exclude this from creating equality.Semantic differences (all other things held constant).
+                        type: string
+                      message:
+                        description: A human readable message indicating details about the transition.
+                        type: string
+                      reason:
+                        description: The reason for the condition's last transition.
+                        type: string
+                      severity:
+                        description: Severity with which to treat failures of this type of condition. When this is not specified, it defaults to Error.
+                        type: string
+                      status:
+                        description: Status of the condition, one of True, False, Unknown.
+                        type: string
+                      type:
+                        description: Type of condition.
+                        type: string
+                observedGeneration:
+                  description: ObservedGeneration is the 'Generation' of the Service that was last processed by the controller.
+                  type: integer
+                  format: int64
 ---
+# Copyright 2022 The Sigstore Authors.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     https://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
 apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
@@ -657,7 +760,7 @@ spec:
                   type: object
                   properties:
                     mirror:
-                      description: 'Mirror is the remote mirror, for example: https://sigstore-tuf-root.storage.googleapis.com'
+                      description: 'Mirror is the remote mirror, for example: https://tuf-repo-cdn.sigstore.dev'
                       type: string
                     root:
                       description: Root is the base64 encoded, json trusted initial root.
@@ -752,3 +855,44 @@ spec:
                           uri:
                             description: The URI at which the CA can be accessed.
                             type: string
+            status:
+              description: Status represents the current state of the TrustRoot. This data may be out of date.
+              type: object
+              properties:
+                annotations:
+                  description: Annotations is additional Status fields for the Resource to save some additional State as well as convey more information to the user. This is roughly akin to Annotations on any k8s resource, just the reconciler conveying richer information outwards.
+                  type: object
+                  x-kubernetes-preserve-unknown-fields: true
+                conditions:
+                  description: Conditions the latest available observations of a resource's current state.
+                  type: array
+                  items:
+                    type: object
+                    required:
+                      - type
+                      - status
+                    properties:
+                      lastTransitionTime:
+                        description: LastTransitionTime is the last time the condition transitioned from one status to another. We use VolatileTime in place of metav1.Time to exclude this from creating equality.Semantic differences (all other things held constant).
+                        type: string
+                      message:
+                        description: A human readable message indicating details about the transition.
+                        type: string
+                      reason:
+                        description: The reason for the condition's last transition.
+                        type: string
+                      severity:
+                        description: Severity with which to treat failures of this type of condition. When this is not specified, it defaults to Error.
+                        type: string
+                      status:
+                        description: Status of the condition, one of True, False, Unknown.
+                        type: string
+                      type:
+                        description: Type of condition.
+                        type: string
+                observedGeneration:
+                  description: ObservedGeneration is the 'Generation' of the Service that was last processed by the controller.
+                  type: integer
+                  format: int64
+# Copyright 2021 Chainguard, Inc.
+# SPDX-License-Identifier: Apache-2.0
