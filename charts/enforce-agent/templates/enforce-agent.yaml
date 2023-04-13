@@ -10,6 +10,7 @@ metadata:
     gulfstream.dev/release: devel
     # Don't run these through cosigned!
     policy.sigstore.dev/include: "false"
+    policy.sigstore.dev/exclude: "true"
 # Copyright 2021 Chainguard, Inc.
 # SPDX-License-Identifier: Apache-2.0
 ---
@@ -314,7 +315,7 @@ spec:
       serviceAccountName: controller
       containers:
         - name: controller
-          image: us.gcr.io/prod-enforce-fabc/controlplane@sha256:ad48e9cc86174aee0420c18ab43df842437404c61598256bfb32e83af553fa2c
+          image: us.gcr.io/prod-enforce-fabc/controlplane@sha256:6f9f73fc90a3b95189f19e97df8bb615833591b73f527f9be832091d32708388
           resources:
             requests:
               cpu: 50m
@@ -344,7 +345,7 @@ spec:
                   value: "meta-controlplane"
           env:
             - name: KUBERNETES_MIN_VERSION
-              value: "1.21.0"
+              value: "1.22.0"
             # These settings are used for statefulset-based
             # leader selection.
             - name: STATEFUL_CONTROLLER_ORDINAL
@@ -388,7 +389,7 @@ spec:
           # The STS container is responsible for normalizing federated OIDC
           # tokens by using `chainctl auth login [...] --refresh` with the
           # "sts-in" identity token.
-          image: us.gcr.io/prod-enforce-fabc/chainctl@sha256:6880271c707116c0ff2acbfd077dedb9b43721f2b4aa1c3a3848a952ca7c0883
+          image: us.gcr.io/prod-enforce-fabc/chainctl@sha256:87c1fb0688f76e8568af8c64e1c155bf5262092a6313e1462065b6728f8e2df3
           readinessProbe:
             exec:
               command:
@@ -429,6 +430,8 @@ spec:
                   name: mcp-creds
                   key: identity-uid
                   optional: true
+            - name: ENFORCER_OPTIONS_JSON
+              value: ""
             # Allow users to specify name/description when a cluster first
             # registers itself with an invite code.
             - name: CHAINGUARD_CLUSTER_NAME
@@ -490,9 +493,6 @@ spec:
             items:
               - key: gcp.json
                 path: gcp.json
----
-# Copyright 2022 Chainguard, Inc.
-# SPDX-License-Identifier: Apache-2.0
 ---
 apiVersion: gulfstream.dev/v1alpha1
 kind: Controller
@@ -653,7 +653,7 @@ spec:
   primary:
     group: tekton.dev
     version: v1alpha1
-    resource: run
+    resource: runs
   delegate: https://eots-omni.enforce.dev
 # Copyright 2021 Chainguard, Inc.
 # SPDX-License-Identifier: Apache-2.0
@@ -694,6 +694,7 @@ metadata:
   name: cosign-system
   labels:
     policy.sigstore.dev/include: "false"
+    policy.sigstore.dev/exclude: "true"
     # When tenant is also a SAAS, we want to include this label to
     # make sure we don't accidentally remove the cosign-system out
     # of the service mesh.
@@ -835,7 +836,7 @@ kind: Controller
 metadata:
   name: trustroot-compiler
 spec:
-  delegate: https://trustroot-compiler.chainops.dev
+  delegate: https://trustroot-compiler.enforce.dev
   primary:
     group: policy.sigstore.dev
     version: v1alpha1
@@ -965,7 +966,7 @@ metadata:
     gulfstream.dev/resync: "10s"
 # This is entirely populated by the controller, and if we include the
 # _example we see log lines about failing to parse it.
-# Copyright 2021 Chainguard, Inc.
+# Copyright 2022 Chainguard, Inc.
 # SPDX-License-Identifier: Apache-2.0
 ---
 apiVersion: v1
@@ -977,6 +978,8 @@ metadata:
 data:
   dev.chainguard.enable-cip-cache: "true"
 {{- end }}
+# Copyright 2022 Chainguard, Inc.
+# SPDX-License-Identifier: Apache-2.0
 ---
 apiVersion: v1
 kind: ConfigMap
@@ -1036,7 +1039,7 @@ webhooks:
         name: webhook
         # This is where the MCP will host this webhook (see Webhook below)
         path: /admissionwebhooks/cosigned-resolution
-{{- if .Values.enforcerOptions.webhookFailOpen }}        
+{{- if .Values.enforcerOptions.webhookFailOpen }}
     failurePolicy: Ignore
 {{- else }}
     failurePolicy: Fail
@@ -1169,7 +1172,7 @@ rules:
     resources: ["namespaces"]
     verbs: ["get", "list", "watch"]
   - apiGroups: ["policy.sigstore.dev"]
-    resources: ["clusterimagepolicies"]
+    resources: ["clusterimagepolicies", "clusterimagepolicies/status"]
     verbs: ["get", "list", "watch", "create", "patch", "delete", "deletecollection"]
 # Copyright 2022 Chainguard, Inc.
 # SPDX-License-Identifier: Apache-2.0
