@@ -890,7 +890,7 @@ webhooks:
         name: webhook
         # This is where the MCP will host this webhook (see Webhook below)
         path: /admissionwebhooks/cosigned-policy-defaulting
-{{- if .Values.enforcerOptions.webhookFailOpen }}        
+{{- if .Values.enforcerOptions.webhookFailOpen }}
     failurePolicy: Ignore
 {{- else }}
     failurePolicy: Fail
@@ -1016,7 +1016,7 @@ webhooks:
     namespaceSelector:
       # The webhook should only apply to things that opt-in
       matchExpressions:
-{{- if eq .Values.enforcerOptions.namespaceEnforcementMode "opt-out" }}      
+{{- if eq .Values.enforcerOptions.namespaceEnforcementMode "opt-out" }}
         - key: policy.sigstore.dev/exclude
           operator: NotIn
 {{- else }}
@@ -1044,11 +1044,7 @@ webhooks:
         name: webhook
         # This is where the MCP will host this webhook (see Webhook below)
         path: /admissionwebhooks/cosigned-resolution
-{{- if .Values.enforcerOptions.webhookFailOpen }}
-    failurePolicy: Ignore
-{{- else }}
     failurePolicy: Fail
-{{- end }}
     reinvocationPolicy: IfNeeded
     sideEffects: None
     timeoutSeconds: 25
@@ -1090,7 +1086,7 @@ webhooks:
     namespaceSelector:
       # The webhook should only apply to things that opt-in
       matchExpressions:
-{{- if eq .Values.enforcerOptions.namespaceEnforcementMode "opt-out" }}      
+{{- if eq .Values.enforcerOptions.namespaceEnforcementMode "opt-out" }}
         - key: policy.sigstore.dev/exclude
           operator: NotIn
 {{- else }}
@@ -1118,7 +1114,11 @@ webhooks:
         name: webhook
         # This is where the MCP will host this webhook (see Webhook below)
         path: /admissionwebhooks/cosigned-verification
+{{- if .Values.enforcerOptions.webhookFailOpen }}
+    failurePolicy: Ignore
+{{- else }}
     failurePolicy: Fail
+{{- end }}
     sideEffects: None
     timeoutSeconds: 25
 ---
