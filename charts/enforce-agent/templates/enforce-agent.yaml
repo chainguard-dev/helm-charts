@@ -1016,8 +1016,13 @@ webhooks:
     namespaceSelector:
       # The webhook should only apply to things that opt-in
       matchExpressions:
+{{- if eq .Values.enforcerOptions.namespaceEnforcementMode "opt-out" }}      
+        - key: policy.sigstore.dev/exclude
+          operator: NotIn
+{{- else }}
         - key: policy.sigstore.dev/include
           operator: In
+{{- end }}
           values: ["true"]
     rules:
       - apiGroups: [""]
@@ -1085,8 +1090,13 @@ webhooks:
     namespaceSelector:
       # The webhook should only apply to things that opt-in
       matchExpressions:
+{{- if eq .Values.enforcerOptions.namespaceEnforcementMode "opt-out" }}      
+        - key: policy.sigstore.dev/exclude
+          operator: NotIn
+{{- else }}
         - key: policy.sigstore.dev/include
           operator: In
+{{- end }}
           values: ["true"]
     rules:
       - apiGroups: [""]
