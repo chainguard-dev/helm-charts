@@ -21,3 +21,4 @@ auth:
 enforcerOptions:
   webhookFailOpen: false
   enableCIPCache: false
+  namespaceEnforcementMode: "opt-in"

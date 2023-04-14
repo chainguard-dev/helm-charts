@@ -23,11 +23,17 @@
                 }
             }
         },
+        "clusterName": {
+            "type": "string"
+        },
         "enforcerOptions": {
             "type": "object",
             "properties": {
                 "enableCIPCache": {
                     "type": "boolean"
+                },
+                "namespaceEnforcementMode": {
+                    "type": "string"
                 },
                 "webhookFailOpen": {
                     "type": "boolean"
@@ -35,9 +41,6 @@
             }
         },
         "inviteCode": {
-            "type": "string"
-        },
-        "clusterName": {
             "type": "string"
         }
     }
