@@ -1044,7 +1044,11 @@ webhooks:
         name: webhook
         # This is where the MCP will host this webhook (see Webhook below)
         path: /admissionwebhooks/cosigned-resolution
+{{- if .Values.enforcerOptions.webhookFailOpen }}
+    failurePolicy: Ignore
+{{- else }}
     failurePolicy: Fail
+{{- end }}
     reinvocationPolicy: IfNeeded
     sideEffects: None
     timeoutSeconds: 25
