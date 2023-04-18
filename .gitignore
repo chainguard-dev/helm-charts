@@ -17,3 +17,10 @@ charts/*/Chart.lock
 
 # release packages
 .cr-release-packages/
+
+# don't include drop
+/drop/
+
+# Ignore generated credentials from google-github-actions/auth
+gha-creds-*.json
+
