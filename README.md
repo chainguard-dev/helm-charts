@@ -47,3 +47,4 @@ will be included in this tag.
 ## Charts
 
 * [enforce-agent](charts/enforce-agent) - [docs](https://edu.chainguard.dev/chainguard/chainguard-enforce/chainguard-enforce-kubernetes/alternative-installation-methods/)
+
