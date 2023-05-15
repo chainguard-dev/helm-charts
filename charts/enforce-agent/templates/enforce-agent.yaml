@@ -315,7 +315,7 @@ spec:
       serviceAccountName: controller
       containers:
         - name: controller
-          image: us.gcr.io/prod-enforce-fabc/controlplane@sha256:d0ae385a93a26d444d808559c3277ce5f76d996e26dbbfa43b8cdb7c53fbd397
+          image: us.gcr.io/prod-enforce-fabc/controlplane@sha256:7e8d97ddbb746dc83043b1512b0a62b9ff09b5dc5acf0f3b88881b77a2e2758c
           resources:
             requests:
               cpu: 50m
@@ -389,7 +389,7 @@ spec:
           # The STS container is responsible for normalizing federated OIDC
           # tokens by using `chainctl auth login [...] --refresh` with the
           # "sts-in" identity token.
-          image: us.gcr.io/prod-enforce-fabc/chainctl@sha256:185f3fbc2dd25f7b70ae1200052d766799945e311da6066bc1f156f2058eae40
+          image: us.gcr.io/prod-enforce-fabc/chainctl@sha256:18cb062a6e0c69738adb350b5fbf2b8af7dcc901c18b57009b47e27880ca03da
           readinessProbe:
             exec:
               command:
@@ -687,6 +687,8 @@ rules:
   - apiGroups: ["tekton.dev"]
     resources: ["pipelineruns", "taskruns", "runs"]
     verbs: ["get", "list", "watch"]
+# Copyright 2021 Chainguard, Inc.
+# SPDX-License-Identifier: Apache-2.0
 ---
 apiVersion: v1
 kind: Namespace
@@ -1153,6 +1155,8 @@ spec:
     - namespace: cosign-system
       name: config-policy-controller
   delegate: https://cosigned-verification.enforce.dev
+# Copyright 2022 Chainguard, Inc.
+# SPDX-License-Identifier: Apache-2.0
 ---
 kind: ClusterRole
 apiVersion: rbac.authorization.k8s.io/v1
