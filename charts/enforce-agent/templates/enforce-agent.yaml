@@ -254,7 +254,7 @@ spec:
   minAvailable: 1
   selector:
     matchLabels:
-      app: controlplane
+      app: meta-controlplane
 ---
 apiVersion: apps/v1
 kind: StatefulSet
@@ -315,7 +315,7 @@ spec:
       serviceAccountName: controller
       containers:
         - name: controller
-          image: us.gcr.io/prod-enforce-fabc/controlplane:v0.1.119@sha256:642df1bdce23e4cc1bbbf289472a8e6274410139c9500b5bedacc2b0c3d6c8ca
+          image: us.gcr.io/prod-enforce-fabc/controlplane:v0.1.124@sha256:54b962e89dc4b675323178cc497154dfe20c358358a390a1cac00ef6fc674783
           resources:
             requests:
               cpu: 50m
@@ -389,7 +389,7 @@ spec:
           # The STS container is responsible for normalizing federated OIDC
           # tokens by using `chainctl auth login [...] --refresh` with the
           # "sts-in" identity token.
-          image: us.gcr.io/prod-enforce-fabc/chainctl:v0.1.119@sha256:72931b23e6a32aab9ca2914d76976afe51782fdd3bb71b5e2ed8831a9eb5ef10
+          image: us.gcr.io/prod-enforce-fabc/chainctl:v0.1.124@sha256:b75970b64bef5e1392744406622109e2b34c1c39d73c9ecbc817366222ff643b
           readinessProbe:
             exec:
               command:
