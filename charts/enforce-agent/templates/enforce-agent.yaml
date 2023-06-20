@@ -315,14 +315,14 @@ spec:
       serviceAccountName: controller
       containers:
         - name: controller
-          image: us.gcr.io/prod-enforce-fabc/controlplane:v0.1.130@sha256:1a125287efab2c23e4faa18d204e3a7c33dd41a313cc79dfe154ed2921e3271c
+          image: us.gcr.io/prod-enforce-fabc/controlplane:v0.1.131@sha256:ae1740b280181f3d451ae7ca56b2cff45eb8d1f137c7309cd5a22446891710b5
           resources:
             requests:
               cpu: 50m
               memory: 50Mi
             limits:
-              cpu: 1000m
-              memory: 1000Mi
+              cpu: 1
+              memory: 1Gi
           ports:
             - name: https-webhook
               containerPort: 443
@@ -389,7 +389,7 @@ spec:
           # The STS container is responsible for normalizing federated OIDC
           # tokens by using `chainctl auth login [...] --refresh` with the
           # "sts-in" identity token.
-          image: us.gcr.io/prod-enforce-fabc/chainctl:v0.1.130@sha256:b3c5221199e37e0c852b92f58df9365f326fbaeaf3012ede56491873b91b0908
+          image: us.gcr.io/prod-enforce-fabc/chainctl:v0.1.131@sha256:3ea3486eb88da1cc2e6a77a586f1a417546e0ed108b6dfd78400036a11e5d4d7
           readinessProbe:
             exec:
               command:
@@ -466,6 +466,13 @@ spec:
             capabilities:
               drop:
                 - ALL
+          resources:
+            requests:
+              cpu: 50m
+              memory: 50Mi
+            limits:
+              cpu: 1
+              memory: 1Gi
           volumeMounts:
             - mountPath: /var/run/sts-in
               name: oidc-token
