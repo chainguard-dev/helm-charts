@@ -272,9 +272,8 @@ spec:
   # 2. We cannot update all pods in parallel because this serves a webhook that
   #   would become unavailable if all the pods were deleted at once.
   podManagementPolicy: Parallel
-  # TODO(mattmoor): Add this once we're on 1.23
   # Wait for 30s before updating the next pod.
-  # minReadySeconds: 30
+  minReadySeconds: 30
   updateStrategy:
     type: RollingUpdate
   selector:
@@ -315,7 +314,7 @@ spec:
       serviceAccountName: controller
       containers:
         - name: controller
-          image: us.gcr.io/prod-enforce-fabc/controlplane:v0.1.131@sha256:ae1740b280181f3d451ae7ca56b2cff45eb8d1f137c7309cd5a22446891710b5
+          image: us.gcr.io/prod-enforce-fabc/controlplane:v0.1.132@sha256:0aa1ef867b03ac4205318e6f1451cf50d0128236c0237c7d5861191f040a2f48
           resources:
             requests:
               cpu: 50m
@@ -389,7 +388,7 @@ spec:
           # The STS container is responsible for normalizing federated OIDC
           # tokens by using `chainctl auth login [...] --refresh` with the
           # "sts-in" identity token.
-          image: us.gcr.io/prod-enforce-fabc/chainctl:v0.1.131@sha256:3ea3486eb88da1cc2e6a77a586f1a417546e0ed108b6dfd78400036a11e5d4d7
+          image: us.gcr.io/prod-enforce-fabc/chainctl:v0.1.132@sha256:56d0acd37b32364eb20d76fb41a1759d04b4bf2fcbb8318879baf79361a9f2e9
           readinessProbe:
             exec:
               command:
