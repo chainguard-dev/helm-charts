@@ -314,7 +314,7 @@ spec:
       serviceAccountName: controller
       containers:
         - name: controller
-          image: us.gcr.io/prod-enforce-fabc/controlplane:v0.1.139@sha256:440086c17e94f28d7a67096cd8a1fca9fda09fa3accfb9f885b879cff42524ae
+          image: us.gcr.io/prod-enforce-fabc/controlplane:v0.1.140@sha256:73f7b6aec7b8adda62e3c8cd493689185ea3be36f8056733d979315db9d32e1a
           resources:
             requests:
               cpu: 50m
@@ -388,7 +388,7 @@ spec:
           # The STS container is responsible for normalizing federated OIDC
           # tokens by using `chainctl auth login [...] --refresh` with the
           # "sts-in" identity token.
-          image: us.gcr.io/prod-enforce-fabc/chainctl:v0.1.139@sha256:46f0776f2f47f741f937347752d288451314359c1f4f7f5353638ed724b90404
+          image: us.gcr.io/prod-enforce-fabc/chainctl:v0.1.140@sha256:2b1e8d54d5173139b5ddfb7367f8b6f586ef750ecb809d5bc0833424f6d9c0cc
           readinessProbe:
             exec:
               command:
@@ -1197,6 +1197,9 @@ rules:
     verbs: ["get", "list", "watch"]
   - apiGroups: ["policy.sigstore.dev"]
     resources: ["clusterimagepolicies", "clusterimagepolicies/status"]
+    verbs: ["get", "list", "watch", "create", "update", "patch", "delete", "deletecollection"]
+  - apiGroups: [""]
+    resources: ["secrets"]
     verbs: ["get", "list", "watch", "create", "patch", "delete", "deletecollection"]
 # Copyright 2022 Chainguard, Inc.
 # SPDX-License-Identifier: Apache-2.0
