@@ -314,7 +314,7 @@ spec:
       serviceAccountName: controller
       containers:
         - name: controller
-          image: us.gcr.io/prod-enforce-fabc/controlplane:v0.1.142@sha256:20195b5e056920ceedf4d11f197e084a544fd7296129502fa3f60b83776836af
+          image: us.gcr.io/prod-enforce-fabc/controlplane:v0.1.143@sha256:4697847a0790ca8d6f5037c26a84d31c7fa74607384c38376faaa11c13ec3565
           resources:
             requests:
               cpu: 50m
@@ -388,7 +388,7 @@ spec:
           # The STS container is responsible for normalizing federated OIDC
           # tokens by using `chainctl auth login [...] --refresh` with the
           # "sts-in" identity token.
-          image: us.gcr.io/prod-enforce-fabc/chainctl:v0.1.142@sha256:edc5f2d80be548d632b66bb28d90a72c39b8de592f85bb17c0cce4214436940f
+          image: us.gcr.io/prod-enforce-fabc/chainctl:v0.1.143@sha256:831214d4c5321e805a781c7ebeda61f2079d781256eea045effa7fdc5f6d97de
           readinessProbe:
             exec:
               command:
@@ -765,7 +765,7 @@ rules:
   - apiGroups: ["policy.sigstore.dev"]
     resources: ["*"]
     # We need patch for finalizers
-    verbs: ["get", "list", "watch", "patch"]
+    verbs: ["get", "list", "watch", "patch", "update"]
   # For the continuous-verification reconciler
   # TODO(#1217): can remove once "namespace" supported in primary
   - apiGroups: [""]
