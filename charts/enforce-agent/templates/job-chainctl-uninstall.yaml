@@ -1,0 +1,206 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: job-chainctl-uninstall
+  namespace: gulfstream
+  labels:
+    app.kubernetes.io/managed-by: {{ .Release.Service | quote }}
+    app.kubernetes.io/instance: {{ .Release.Name | quote }}
+    app.kubernetes.io/version: {{ .Chart.AppVersion }}
+    helm.sh/chart: "{{ .Chart.Name }}-{{ .Chart.Version }}"
+  annotations:
+    # This is what defines this resource as a hook. Without this line, the
+    # job is considered part of the release.
+    "helm.sh/hook": pre-delete
+    "helm.sh/hook-weight": "1"
+    "helm.sh/hook-delete-policy": hook-succeeded
+spec:
+  template:
+    metadata:
+      name: "{{ .Release.Name }}"
+      labels:
+        app.kubernetes.io/managed-by: {{ .Release.Service | quote }}
+        app.kubernetes.io/instance: {{ .Release.Name | quote }}
+        helm.sh/chart: "{{ .Chart.Name }}-{{ .Chart.Version }}"
+    spec:
+      serviceAccountName: controller
+      restartPolicy: Never
+      initContainers:
+        - name: chainctl-login
+          image: us.gcr.io/prod-enforce-fabc/chainctl:v0.1.154@sha256:036c8235bdae843f7a241f4c302642a5546d2042306f3d68eef4a55a3b4084cc
+          args: ["auth", "login", "--audience", "gulfstream", "--identity-token", "/var/run/sts-in/oidc-token", "--gulfstream",
+            # If GOOGLE_SERVICE_ACCOUNT_NAME is set, prefer that over
+            # the provided token.
+            "--prefer-ambient-credentials",
+            # When INVITE_CODE is populated, failures to exchange tokens
+            # will cause us to attempt to register this service account
+            # and cluster using the invite code as authentication.
+          ]
+          env:
+            - name: XDG_CACHE_HOME
+              value: /var/run/sts-out
+            - name: SYSTEM_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+            - name: INVITE_CODE
+              valueFrom:
+                secretKeyRef:
+                  name: mcp-creds
+                  key: code
+                  optional: true
+            - name: IDENTITY_UID
+              valueFrom:
+                secretKeyRef:
+                  name: mcp-creds
+                  key: identity-uid
+                  optional: true
+            - name: ENFORCER_OPTIONS_JSON
+              value: ""
+            # Allow users to specify name/description when a cluster first
+            # registers itself with an invite code.
+            - name: CHAINGUARD_CLUSTER_NAME
+              valueFrom:
+                secretKeyRef:
+                  name: mcp-creds
+                  key: cluster-name
+                  optional: true
+            - name: CHAINGUARD_CLUSTER_DESCRIPTION
+              valueFrom:
+                secretKeyRef:
+                  name: mcp-creds
+                  key: cluster-description
+                  optional: true
+            # If we mount GCP credentials, this is where we will mount them.
+            - name: GOOGLE_APPLICATION_CREDENTIALS
+              valueFrom:
+                secretKeyRef:
+                  name: mcp-creds
+                  key: gcp-svc-acct-path
+                  optional: true
+            - name: GOOGLE_SERVICE_ACCOUNT_NAME
+              valueFrom:
+                secretKeyRef:
+                  name: mcp-creds
+                  key: gcp-svc-acct-name
+                  optional: true
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            runAsNonRoot: true
+            capabilities:
+              drop:
+                - ALL
+          resources:
+            requests:
+              cpu: 50m
+              memory: 50Mi
+            limits:
+              cpu: 1
+              memory: 200Mi
+          volumeMounts:
+            - mountPath: /var/run/sts-in
+              name: oidc-token
+              readOnly: true
+            - mountPath: /var/run/sts-out/chainguard/gulfstream
+              name: sts-token
+            - name: mcp-creds
+              mountPath: /var/run/sts
+              readOnly: true
+      containers:
+        - name: pre-delete-job
+          image: us.gcr.io/prod-enforce-fabc/chainctl:v0.1.154@sha256:036c8235bdae843f7a241f4c302642a5546d2042306f3d68eef4a55a3b4084cc
+          args:
+            - "cluster"
+            - "uninstall"
+            - "--yes"
+            - "--cluster=$(CHAINGUARD_CLUSTER_NAME)"
+          env:
+            - name: XDG_CACHE_HOME
+              value: /var/run/sts-out
+            - name: SYSTEM_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+            - name: INVITE_CODE
+              valueFrom:
+                secretKeyRef:
+                  name: mcp-creds
+                  key: code
+                  optional: true
+            - name: IDENTITY_UID
+              valueFrom:
+                secretKeyRef:
+                  name: mcp-creds
+                  key: identity-uid
+                  optional: true
+            - name: ENFORCER_OPTIONS_JSON
+              value: ""
+            # Allow users to specify name/description when a cluster first
+            # registers itself with an invite code.
+            - name: CHAINGUARD_CLUSTER_NAME
+              valueFrom:
+                secretKeyRef:
+                  name: mcp-creds
+                  key: cluster-name
+                  optional: true
+            - name: CHAINGUARD_CLUSTER_DESCRIPTION
+              valueFrom:
+                secretKeyRef:
+                  name: mcp-creds
+                  key: cluster-description
+                  optional: true
+            # If we mount GCP credentials, this is where we will mount them.
+            - name: GOOGLE_APPLICATION_CREDENTIALS
+              valueFrom:
+                secretKeyRef:
+                  name: mcp-creds
+                  key: gcp-svc-acct-path
+                  optional: true
+            - name: GOOGLE_SERVICE_ACCOUNT_NAME
+              valueFrom:
+                secretKeyRef:
+                  name: mcp-creds
+                  key: gcp-svc-acct-name
+                  optional: true
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            runAsNonRoot: true
+            capabilities:
+              drop:
+                - ALL
+          resources:
+            requests:
+              cpu: 50m
+              memory: 50Mi
+            limits:
+              cpu: 1
+              memory: 200Mi
+          volumeMounts:
+            - mountPath: /var/run/sts-in
+              name: oidc-token
+              readOnly: true
+            - mountPath: /var/run/sts-out/chainguard/gulfstream
+              name: sts-token
+            - name: mcp-creds
+              mountPath: /var/run/sts
+              readOnly: true
+      volumes:
+        - name: sts-token
+          emptyDir: {}
+        - name: oidc-token
+          projected:
+            sources:
+              - serviceAccountToken:
+                  path: oidc-token
+                  # 600 is the shortest supported lifespan
+                  expirationSeconds: 600
+                  audience: gulfstream
+        - name: mcp-creds
+          secret:
+            secretName: mcp-creds
+            optional: true
+            items:
+              - key: gcp.json
+                path: gcp.json
