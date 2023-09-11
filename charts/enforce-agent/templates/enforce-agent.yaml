@@ -982,10 +982,11 @@ kind: ConfigMap
 metadata:
   name: config-policy-controller
   namespace: cosign-system
-{{- if .Values.enforcerOptions.enableCIPCache }}
 data:
+{{- if .Values.enforcerOptions.enableCIPCache }}
   dev.chainguard.enable-cip-cache: "true"
 {{- end }}
+  no-match-policy: {{.Values.enforcerOptions.noMatchPolicy}}
 # Copyright 2022 Chainguard, Inc.
 # SPDX-License-Identifier: Apache-2.0
 ---

@@ -37,6 +37,9 @@
                 },
                 "webhookFailOpen": {
                     "type": "boolean"
+                },
+                "noMatchPolicy": {
+                    "type": "string"
                 }
             }
         },
