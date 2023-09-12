@@ -22,3 +22,6 @@ enforcerOptions:
   webhookFailOpen: false
   enableCIPCache: false
   namespaceEnforcementMode: "opt-in"
+  # NoMatchPolicy specifies the behavior when a base image doesn't match any
+  # of the listed policies.  It allows the values: allow, deny (default), and warn.
+  noMatchPolicy: "deny"
