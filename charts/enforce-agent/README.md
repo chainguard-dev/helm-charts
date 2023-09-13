@@ -2,7 +2,7 @@
 
 <!-- This README.md is generated. Please edit README.md.gotmpl -->
 
-![Version: 0.0.64](https://img.shields.io/badge/Version-0.0.64-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: v0.1.165](https://img.shields.io/badge/AppVersion-v0.1.165-informational?style=flat-square)
+![Version: 0.0.66](https://img.shields.io/badge/Version-0.0.66-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: v0.1.166](https://img.shields.io/badge/AppVersion-v0.1.166-informational?style=flat-square)
 
 A helm chart for Chainguard's Enforce Agent.
 
@@ -42,5 +42,6 @@ helm uninstall [RELEASE_NAME]
 | clusterName | string | `""` |  |
 | enforcerOptions.enableCIPCache | bool | `false` |  |
 | enforcerOptions.namespaceEnforcementMode | string | `"opt-in"` |  |
+| enforcerOptions.noMatchPolicy | string | `"deny"` |  |
 | enforcerOptions.webhookFailOpen | bool | `false` |  |
 | inviteCode | string | `""` | Invite code assigned to group where clusters will be registered. This can be generated with: `chainctl iam invite create $GROUP --cluster -ojson | jq -r .code` |
