@@ -314,7 +314,7 @@ spec:
       serviceAccountName: controller
       containers:
         - name: controller
-          image: us.gcr.io/prod-enforce-fabc/controlplane:v0.1.172@sha256:af86ec51c688cf4141d28dd13303c3f198e858fdee6861a7a6fa41ff966ff28c
+          image: us.gcr.io/prod-enforce-fabc/controlplane:v0.1.174@sha256:73e488e15025c0273811755ae8a25edef8ad4cd4c9b169b726b75d194cfa4449
           resources:
             requests:
               cpu: 50m
@@ -388,7 +388,7 @@ spec:
           # The STS container is responsible for normalizing federated OIDC
           # tokens by using `chainctl auth login [...] --refresh` with the
           # "sts-in" identity token.
-          image: us.gcr.io/prod-enforce-fabc/chainctl:v0.1.172@sha256:43e8f8cf91f8cedf3fbbe3dd7b2c7e0506b6f501cf81009449a09cdff27362a7
+          image: us.gcr.io/prod-enforce-fabc/chainctl:v0.1.174@sha256:8de27bc2baa9742f7d27069d9c6739a999d337354674f82574350a3eda098146
           readinessProbe:
             exec:
               command:
