@@ -7,4 +7,4 @@ claim_pattern:
 
 permissions:
   contents: write
-  pull-requests: write
+  pull_requests: write
