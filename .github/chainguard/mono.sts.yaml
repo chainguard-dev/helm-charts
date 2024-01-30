@@ -1,7 +1,7 @@
 # Allow release tags from our mono repo running the release-helm-charts
 # workflow to push and create a PR to the helm-charts repo to publish the helm charts.
 issuer: https://token.actions.githubusercontent.com
-subject_pattern: repo:chainguard-dev/mono:ref:refs/tags/v.*
+subject_pattern: repo:chainguard-dev/mono:ref:refs/(tags/v.*|heads/main)
 claim_pattern:
   job_workflow_ref: chainguard-dev/mono/.github/workflows/release-helm-charts.yaml@.*
 
