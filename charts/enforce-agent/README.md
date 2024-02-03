@@ -2,7 +2,7 @@
 
 <!-- This README.md is generated. Please edit README.md.gotmpl -->
 
-![Version: 0.0.108](https://img.shields.io/badge/Version-0.0.108-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: v0.1.221](https://img.shields.io/badge/AppVersion-v0.1.221-informational?style=flat-square)
+![Version: 0.0.109](https://img.shields.io/badge/Version-0.0.109-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: v0.1.222](https://img.shields.io/badge/AppVersion-v0.1.222-informational?style=flat-square)
 
 A helm chart for Chainguard's Enforce Agent.
 
