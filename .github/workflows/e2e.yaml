@@ -48,7 +48,7 @@ jobs:
         uses: helm/chart-testing-action@e6669bcd63d7cb57cb4380c33043eebe5d111992 # v2.6.1
 
       - name: Setup G Cloud SDK
-        uses: google-github-actions/setup-gcloud@e30db14379863a8c79331b04a9969f4c1e225e0b # v2.0.11
+        uses: google-github-actions/setup-gcloud@98ddc00a17442e89a24bbf282954a3b65ce6d200 # v2.0.11
 
       - name: Setup chainctl
         uses: chainguard-dev/actions/setup-chainctl@main
