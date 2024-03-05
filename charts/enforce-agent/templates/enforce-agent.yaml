@@ -1,5 +1,1260 @@
-? <?xml version='1.0' encoding='UTF-8'?><Error><Code>NoSuchKey</Code><Message>The specified key does not exist.</Message><Details>No such object
-: us.artifacts.prod-enforce-fabc.appspot.com/yaml/v0.1.245/mcp.yaml</Details></Error>
+# Copyright 2021 Chainguard, Inc.
+# SPDX-License-Identifier: Apache-2.0
+
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: gulfstream
+  labels:
+    # This is needed by the configmap webhook
+    gulfstream.dev/release: devel
+    # Don't run these through cosigned!
+    policy.sigstore.dev/include: "false"
+    policy.sigstore.dev/exclude: "true"
+# Copyright 2021 Chainguard, Inc.
+# SPDX-License-Identifier: Apache-2.0
 ---
-? <?xml version='1.0' encoding='UTF-8'?><Error><Code>NoSuchKey</Code><Message>The specified key does not exist.</Message><Details>No such object
-: us.artifacts.prod-enforce-fabc.appspot.com/yaml/v0.1.245/tenant.yaml</Details></Error>
+kind: ClusterRole
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: gulfstream-rbac
+aggregationRule:
+  clusterRoleSelectors:
+    - matchLabels:
+        gulfstream.dev/controller: "true"
+rules: [] # Rules are automatically filled in by the controller manager.
+---
+kind: ClusterRole
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: gulfstream-core
+  labels:
+    gulfstream.dev/controller: "true"
+rules:
+  # Allow creating events associated with cluster-scoped resources (e.g. our CRDs)
+  - apiGroups: [""]
+    resources: ["events"]
+    verbs: ["create"]
+  # Needed to watch and load configuration and secret data.
+  - apiGroups: [""]
+    resources: ["configmaps"]
+    verbs: ["get", "list", "update", "watch"]
+  # Allow the reconciliation of exactly our validating webhooks.
+  - apiGroups: ["admissionregistration.k8s.io"]
+    resources: ["validatingwebhookconfigurations"]
+    verbs: ["list", "watch"]
+  - apiGroups: ["admissionregistration.k8s.io"]
+    resources: ["validatingwebhookconfigurations"]
+    verbs: ["get", "update"]
+    resourceNames: ["config.webhook.gulfstream.dev", "validation.webhook.gulfstream.dev"]
+  # Allow the reconciliation of exactly our mutating webhooks.
+  - apiGroups: ["admissionregistration.k8s.io"]
+    resources: ["mutatingwebhookconfigurations"]
+    verbs: ["list", "watch"]
+  - apiGroups: ["admissionregistration.k8s.io"]
+    resources: ["mutatingwebhookconfigurations"]
+    verbs: ["get", "update"]
+    resourceNames: ["defaulting.webhook.gulfstream.dev"]
+  # Allow the reconciliation of exactly our CRDs.
+  - apiGroups: ["apiextensions.k8s.io"]
+    resources: ["customresourcedefinitions"]
+    verbs: ["list", "watch"]
+  - apiGroups: ["apiextensions.k8s.io"]
+    resources: ["customresourcedefinitions"]
+    verbs: ["get", "update"]
+    resourceNames: ["controllers.gulfstream.dev", "webhooks.gulfstream.dev"]
+  # These are the resources that we are controlling.
+  - apiGroups: ["gulfstream.dev"]
+    resources: ["*"]
+    verbs: ["get", "list", "update", "watch"]
+  # The webhook configured the namespace as the OwnerRef on various cluster-scoped resources,
+  # which requires we can Get the system namespace.
+  - apiGroups: [""]
+    resources: ["namespaces"]
+    verbs: ["get"]
+    resourceNames: ["gulfstream"]
+# Copyright 2021 Chainguard, Inc.
+# SPDX-License-Identifier: Apache-2.0
+---
+kind: Role
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: gulfstream-namespace-rbac
+  namespace: gulfstream
+rules:
+  # Needed to watch and load configuration and secret data.
+  - apiGroups: [""]
+    resources: ["secrets"]
+    verbs: ["get", "list", "update", "watch"]
+# Copyright 2021 Chainguard, Inc.
+# SPDX-License-Identifier: Apache-2.0
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: controller
+  namespace: gulfstream
+# Copyright 2021 Chainguard, Inc.
+# SPDX-License-Identifier: Apache-2.0
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: gulfstream-rbac
+subjects:
+  - kind: ServiceAccount
+    name: controller
+    namespace: gulfstream
+roleRef:
+  kind: ClusterRole
+  name: gulfstream-rbac
+  apiGroup: rbac.authorization.k8s.io
+# Copyright 2021 Chainguard, Inc.
+# SPDX-License-Identifier: Apache-2.0
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: gulfstream-namespace-rbac
+  namespace: gulfstream
+subjects:
+  - kind: ServiceAccount
+    name: controller
+    namespace: gulfstream
+roleRef:
+  kind: Role
+  name: gulfstream-namespace-rbac
+  apiGroup: rbac.authorization.k8s.io
+# Copyright 2021 Chainguard, Inc.
+# SPDX-License-Identifier: Apache-2.0
+---
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    app: meta-controlplane
+  name: webhook
+  namespace: gulfstream
+spec:
+  ports:
+    - name: https-webhook
+      port: 443
+      targetPort: 443
+  selector:
+    app: meta-controlplane
+# Copyright 2021 Chainguard, Inc.
+# SPDX-License-Identifier: Apache-2.0
+---
+apiVersion: admissionregistration.k8s.io/v1
+kind: MutatingWebhookConfiguration
+metadata:
+  name: defaulting.webhook.gulfstream.dev
+webhooks:
+  - admissionReviewVersions: ["v1"]
+    clientConfig:
+      service:
+        name: webhook
+        namespace: gulfstream
+    failurePolicy: Fail
+    sideEffects: None
+    timeoutSeconds: 25
+    name: defaulting.webhook.gulfstream.dev
+---
+apiVersion: admissionregistration.k8s.io/v1
+kind: ValidatingWebhookConfiguration
+metadata:
+  name: validation.webhook.gulfstream.dev
+webhooks:
+  - admissionReviewVersions: ["v1"]
+    clientConfig:
+      service:
+        name: webhook
+        namespace: gulfstream
+    failurePolicy: Fail
+    sideEffects: None
+    timeoutSeconds: 25
+    name: validation.webhook.gulfstream.dev
+---
+apiVersion: admissionregistration.k8s.io/v1
+kind: ValidatingWebhookConfiguration
+metadata:
+  name: config.webhook.gulfstream.dev
+webhooks:
+  - admissionReviewVersions: ["v1"]
+    clientConfig:
+      service:
+        name: webhook
+        namespace: gulfstream
+    # This only determines what happens on networking failures,
+    # which are most likely for this webhook at install-time, so
+    # tell the API server to ignore those, since they are most
+    # likely just an install-time race.
+    failurePolicy: Ignore
+    sideEffects: None
+    timeoutSeconds: 25
+    name: config.webhook.gulfstream.dev
+    namespaceSelector:
+      matchExpressions:
+        - key: gulfstream.dev/release
+          operator: Exists
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: webhook-certs
+  namespace: gulfstream
+# The data is populated at install time.
+# Copyright 2021 Chainguard, Inc.
+# SPDX-License-Identifier: Apache-2.0
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: config-leader-election
+  namespace: gulfstream
+  labels:
+    gulfstream.dev/release: devel
+data:
+  # This should match the controlplane's replica count.
+  buckets: "2"
+# Copyright 2021 Chainguard, Inc.
+# SPDX-License-Identifier: Apache-2.0
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: config-logging
+  namespace: gulfstream
+  labels:
+    gulfstream.dev/release: devel
+data:
+  loglevel.controlplane: "info"
+# Copyright 2021 Chainguard, Inc.
+# SPDX-License-Identifier: Apache-2.0
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: config-observability
+  namespace: gulfstream
+  labels:
+    gulfstream.dev/release: devel
+data:
+  metrics.backend-destination: prometheus
+  metrics.request-metrics-backend-destination: prometheus
+# Copyright 2021 Chainguard, Inc.
+# SPDX-License-Identifier: Apache-2.0
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: meta-controlplane
+  namespace: gulfstream
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app: meta-controlplane
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: meta-controlplane
+  namespace: gulfstream
+spec:
+  # Keep replicas in sync with "buckets" value in config-leader-election.yaml.
+  replicas: 2
+  # We allow things to deploy and update in parallel, but use a
+  # PodDisruptionBudget (above) to ensure that at least 1 pod remains available
+  # as we are updating things.  This is a delicate balancing act because:
+  # 1. We need to launch the initial set of pods in "Parallel" so that whichever
+  #   pod ends up the leader of the webhook cert comes up immediately, but
+  # 2. We cannot update all pods in parallel because this serves a webhook that
+  #   would become unavailable if all the pods were deleted at once.
+  podManagementPolicy: Parallel
+  # Wait for 30s before updating the next pod.
+  minReadySeconds: 30
+  updateStrategy:
+    type: RollingUpdate
+  selector:
+    matchLabels:
+      app: meta-controlplane
+  serviceName: &service "webhook"
+  template:
+    metadata:
+      labels:
+        app: meta-controlplane
+    spec:
+      # To avoid node becoming SPOF, spread our replicas to different nodes.
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            # favor pods on different nodes
+            - podAffinityTerm:
+                labelSelector:
+                  matchLabels:
+                    app: meta-controlplane
+                topologyKey: kubernetes.io/hostname
+              weight: 100
+              # favor pods in different zones
+            - podAffinityTerm:
+                labelSelector:
+                  matchLabels:
+                    app: meta-controlplane
+                topologyKey: "topology.kubernetes.io/zone"
+              weight: 100
+      # Allow this pod to bind to "low" ports without root / capabilities.
+      # As of Kubernetes 1.22 this is considered a "safe" sysctl according
+      # to the upstream documentation:
+      # https://kubernetes.io/docs/tasks/administer-cluster/sysctl-cluster/#enabling-unsafe-sysctls
+      securityContext:
+        sysctls:
+          - name: net.ipv4.ip_unprivileged_port_start
+            value: "0"
+      serviceAccountName: controller
+      containers:
+        - name: controller
+          image: us.gcr.io/prod-enforce-fabc/controlplane:v0.1.245@sha256:db22e6f78f3beca73fe5ccf5f050a48f8273884c4ec9bc368e09f30296d97ecd
+          resources:
+            requests:
+              cpu: 50m
+              memory: 50Mi
+            limits:
+              cpu: 1
+              memory: 1Gi
+          ports:
+            - name: https-webhook
+              containerPort: 443
+          readinessProbe:
+            periodSeconds: 1
+            httpGet:
+              scheme: HTTPS
+              port: 443
+              httpHeaders:
+                - name: k-kubelet-probe
+                  value: "meta-controlplane"
+          livenessProbe:
+            periodSeconds: 1
+            failureThreshold: 50
+            httpGet:
+              scheme: HTTPS
+              port: 443
+              httpHeaders:
+                - name: k-kubelet-probe
+                  value: "meta-controlplane"
+          env:
+            - name: KUBERNETES_MIN_VERSION
+              value: "1.22.0"
+            # These settings are used for statefulset-based
+            # leader selection.
+            - name: STATEFUL_CONTROLLER_ORDINAL
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: STATEFUL_SERVICE_NAME
+              value: *service
+            - name: SYSTEM_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+            - name: POD_IP
+              valueFrom:
+                fieldRef:
+                  fieldPath: status.podIP
+            - name: CONFIG_LOGGING_NAME
+              value: config-logging
+            - name: CONFIG_OBSERVABILITY_NAME
+              value: config-observability
+            - name: METRICS_DOMAIN
+              value: gulfstream.dev/meta
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            runAsNonRoot: true
+            capabilities:
+              drop:
+                - ALL
+                # TODO: Once NET_BIND_SERVICE is sufficient to bind low ports,
+                # switch to adding that capability here.  See also:
+                # https://kubernetes.io/docs/concepts/security/pod-security-standards/
+                # add:
+                # - NET_BIND_SERVICE
+          volumeMounts:
+            # To remove the STS process, replace this with oidc-token,
+            # drop the sidecar, and the sts-token volume below.
+            - name: sts-token
+              mountPath: /var/run/gulfstream
+        - name: sts
+          # The STS container is responsible for normalizing federated OIDC
+          # tokens by using `chainctl auth login [...] --refresh` with the
+          # "sts-in" identity token.
+          image: us.gcr.io/prod-enforce-fabc/chainctl:v0.1.245@sha256:dd9e9cb180f8e61ffe29bf1efb795ce42d881f111de8da63dd6f2ea8cb9f08ad
+          readinessProbe:
+            exec:
+              command:
+                - /ko-app/chainctl
+                - auth
+                - status
+                # Don't call any APIs, just do some basic
+                # token integrity checks.
+                - --quick
+                - --audience
+                - gulfstream
+                - --output=terse
+            initialDelaySeconds: 1
+            periodSeconds: 5
+          args: ["auth", "login", "--audience", "gulfstream", "--identity-token", "/var/run/sts-in/oidc-token", "--gulfstream",
+            # If GOOGLE_SERVICE_ACCOUNT_NAME is set, prefer that over
+            # the provided token.
+            "--prefer-ambient-credentials",
+            # When INVITE_CODE is populated, failures to exchange tokens
+            # will cause us to attempt to register this service account
+            # and cluster using the invite code as authentication.
+          ]
+          env:
+            - name: XDG_CACHE_HOME
+              value: /var/run/sts-out
+            - name: SYSTEM_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+            - name: INVITE_CODE
+              valueFrom:
+                secretKeyRef:
+                  name: mcp-creds
+                  key: code
+                  optional: true
+            - name: IDENTITY_UID
+              valueFrom:
+                secretKeyRef:
+                  name: mcp-creds
+                  key: identity-uid
+                  optional: true
+            - name: ENFORCER_OPTIONS_JSON
+              value: ""
+            # Allow users to specify name/description when a cluster first
+            # registers itself with an invite code.
+            - name: CHAINGUARD_CLUSTER_NAME
+              valueFrom:
+                secretKeyRef:
+                  name: mcp-creds
+                  key: cluster-name
+                  optional: true
+            - name: CHAINGUARD_CLUSTER_DESCRIPTION
+              valueFrom:
+                secretKeyRef:
+                  name: mcp-creds
+                  key: cluster-description
+                  optional: true
+            # If we mount GCP credentials, this is where we will mount them.
+            - name: GOOGLE_APPLICATION_CREDENTIALS
+              valueFrom:
+                secretKeyRef:
+                  name: mcp-creds
+                  key: gcp-svc-acct-path
+                  optional: true
+            - name: GOOGLE_SERVICE_ACCOUNT_NAME
+              valueFrom:
+                secretKeyRef:
+                  name: mcp-creds
+                  key: gcp-svc-acct-name
+                  optional: true
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            runAsNonRoot: true
+            capabilities:
+              drop:
+                - ALL
+          resources:
+            requests:
+              cpu: 50m
+              memory: 50Mi
+            limits:
+              cpu: 1
+              memory: 1Gi
+          volumeMounts:
+            - mountPath: /var/run/sts-in
+              name: oidc-token
+              readOnly: true
+            - mountPath: /var/run/sts-out/chainguard/gulfstream
+              name: sts-token
+            - name: mcp-creds
+              mountPath: /var/run/sts
+              readOnly: true
+      volumes:
+        - name: sts-token
+          emptyDir: {}
+        - name: oidc-token
+          projected:
+            sources:
+              - serviceAccountToken:
+                  path: oidc-token
+                  # 600 is the shortest supported lifespan
+                  expirationSeconds: 600
+                  audience: gulfstream
+        - name: mcp-creds
+          secret:
+            secretName: mcp-creds
+            optional: true
+            items:
+              - key: gcp.json
+                path: gcp.json
+---
+apiVersion: gulfstream.dev/v1alpha1
+kind: Controller
+metadata:
+  name: eots-namespaces
+spec:
+  primary:
+    version: v1
+    resource: namespaces
+  delegate: https://eots-omni.enforce.dev
+---
+apiVersion: gulfstream.dev/v1alpha1
+kind: Controller
+metadata:
+  name: eots-deployments
+spec:
+  primary:
+    group: apps
+    version: v1
+    resource: deployments
+  delegate: https://eots-omni.enforce.dev
+---
+apiVersion: gulfstream.dev/v1alpha1
+kind: Controller
+metadata:
+  name: eots-replicasets
+spec:
+  primary:
+    group: apps
+    version: v1
+    resource: replicasets
+  delegate: https://eots-omni.enforce.dev
+---
+apiVersion: gulfstream.dev/v1alpha1
+kind: Controller
+metadata:
+  name: eots-statefulsets
+spec:
+  primary:
+    group: apps
+    version: v1
+    resource: statefulsets
+  delegate: https://eots-omni.enforce.dev
+---
+apiVersion: gulfstream.dev/v1alpha1
+kind: Controller
+metadata:
+  name: eots-daemonsets
+spec:
+  primary:
+    group: apps
+    version: v1
+    resource: daemonsets
+  delegate: https://eots-omni.enforce.dev
+---
+apiVersion: gulfstream.dev/v1alpha1
+kind: Controller
+metadata:
+  name: eots-cronjobs
+spec:
+  primary:
+    group: batch
+    version: v1
+    resource: cronjobs
+  delegate: https://eots-omni.enforce.dev
+---
+apiVersion: gulfstream.dev/v1alpha1
+kind: Controller
+metadata:
+  name: eots-jobs
+spec:
+  primary:
+    group: batch
+    version: v1
+    resource: jobs
+  delegate: https://eots-omni.enforce.dev
+---
+apiVersion: gulfstream.dev/v1alpha1
+kind: Controller
+metadata:
+  name: eots-pods
+spec:
+  primary:
+    version: v1
+    resource: pods
+  delegate: https://eots-omni.enforce.dev
+---
+apiVersion: gulfstream.dev/v1alpha1
+kind: Controller
+metadata:
+  name: eots-nodes
+spec:
+  primary:
+    version: v1
+    resource: nodes
+  delegate: https://eots-omni.enforce.dev
+---
+apiVersion: gulfstream.dev/v1alpha1
+kind: Controller
+metadata:
+  name: eots-ksvc
+spec:
+  primary:
+    group: serving.knative.dev
+    version: v1
+    resource: services
+  delegate: https://eots-omni.enforce.dev
+---
+apiVersion: gulfstream.dev/v1alpha1
+kind: Controller
+metadata:
+  name: eots-kcfg
+spec:
+  primary:
+    group: serving.knative.dev
+    version: v1
+    resource: configurations
+  delegate: https://eots-omni.enforce.dev
+---
+apiVersion: gulfstream.dev/v1alpha1
+kind: Controller
+metadata:
+  name: eots-krev
+spec:
+  primary:
+    group: serving.knative.dev
+    version: v1
+    resource: revisions
+  delegate: https://eots-omni.enforce.dev
+---
+apiVersion: gulfstream.dev/v1alpha1
+kind: Controller
+metadata:
+  name: eots-tekton-pipelinerun
+spec:
+  primary:
+    group: tekton.dev
+    version: v1
+    resource: pipelineruns
+  delegate: https://eots-omni.enforce.dev
+---
+apiVersion: gulfstream.dev/v1alpha1
+kind: Controller
+metadata:
+  name: eots-tekton-taskrun
+spec:
+  primary:
+    group: tekton.dev
+    version: v1
+    resource: taskruns
+  delegate: https://eots-omni.enforce.dev
+---
+apiVersion: gulfstream.dev/v1alpha1
+kind: Controller
+metadata:
+  name: eots-tekton-run
+spec:
+  primary:
+    group: tekton.dev
+    version: v1alpha1
+    resource: runs
+  delegate: https://eots-omni.enforce.dev
+# Copyright 2021 Chainguard, Inc.
+# SPDX-License-Identifier: Apache-2.0
+---
+# RBAC granting the gulfstream controller's aggregated cluster role access to the resources needed
+# TODO(mattmoor): It would be cool to have the proxy record
+# and minimize the RBAC we actually need here.
+kind: ClusterRole
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: eots
+  labels:
+    # Don't install this for agentless where we use IAM
+    # for access instead.
+    agentless.chainguard.dev/skip: "true"
+    # Aggregate into the gulfstream's cluster role.
+    gulfstream.dev/controller: "true"
+rules:
+  - apiGroups: [""]
+    resources: ["pods", "namespaces", "nodes"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: ["batch"]
+    resources: ["cronjobs", "jobs"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: ["apps"]
+    resources: ["daemonsets", "deployments", "replicasets", "statefulsets"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: ["serving.knative.dev"]
+    resources: ["services", "configurations", "revisions"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: ["tekton.dev"]
+    resources: ["pipelineruns", "taskruns", "runs"]
+    verbs: ["get", "list", "watch"]
+# Copyright 2021 Chainguard, Inc.
+# SPDX-License-Identifier: Apache-2.0
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: cosign-system
+  labels:
+    policy.sigstore.dev/include: "false"
+    policy.sigstore.dev/exclude: "true"
+    # When tenant is also a SAAS, we want to include this label to
+    # make sure we don't accidentally remove the cosign-system out
+    # of the service mesh.
+    #
+    # This is a nop when the tenant isn't a SAAS, since this
+    # namespace does not contain a pod.
+    istio-injection: enabled
+# Copyright 2021 Chainguard, Inc.
+# SPDX-License-Identifier: Apache-2.0
+---
+kind: ClusterRole
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: cosigned-image-policies-rbac
+  labels:
+    # Don't install this for agentless where we use IAM
+    # for access instead.
+    agentless.chainguard.dev/skip: "true"
+rules:
+  - apiGroups: [""]
+    resources: ["configmaps", "secrets"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: [""]
+    resources: ["configmaps"]
+    resourceNames: ["config-image-policies", "config-sigstore-keys"]
+    verbs: ["create", "update", "patch"]
+# Copyright 2021 Chainguard, Inc.
+# SPDX-License-Identifier: Apache-2.0
+---
+kind: ClusterRole
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: cosigned-rbac
+  labels:
+    # Don't install this for agentless where we use IAM
+    # for access instead.
+    agentless.chainguard.dev/skip: "true"
+    # Aggregate into the gulfstream's cluster role.
+    gulfstream.dev/controller: "true"
+rules:
+  # Allow the reconciliation of exactly our validating and mutating webhooks.
+  - apiGroups: ["admissionregistration.k8s.io"]
+    resources: ["validatingwebhookconfigurations", "mutatingwebhookconfigurations"]
+    verbs: ["list", "watch"]
+  - apiGroups: ["admissionregistration.k8s.io"]
+    resources: ["validatingwebhookconfigurations", "mutatingwebhookconfigurations"]
+    verbs: ["get", "update"]
+    resourceNames:
+      - "enforcer.chainguard.dev"
+      - "policy-validation.webhook.policy.sigstore.dev"
+      - "policy-defaulting.webhook.policy.sigstore.dev"
+  # ClusterImagePolicy CRD related.
+  - apiGroups: ["apiextensions.k8s.io"]
+    resources: ["customresourcedefinitions"]
+    verbs: ["list", "watch"]
+  - apiGroups: ["apiextensions.k8s.io"]
+    resources: ["customresourcedefinitions"]
+    verbs: ["get", "update"]
+    resourceNames: ["clusterimagepolicies.policy.sigstore.dev", "trustroots.policy.sigstore.dev"]
+  - apiGroups: ["policy.sigstore.dev"]
+    resources: ["*"]
+    # We need patch for finalizers
+    verbs: ["get", "list", "watch", "patch", "update"]
+  # For the continuous-verification reconciler
+  # TODO(#1217): can remove once "namespace" supported in primary
+  - apiGroups: [""]
+    resources: ["configmaps"]
+    verbs: ["get", "list", "watch"]
+  # This is needed by k8schain to support fetching pull secrets attached to pod specs
+  # or their service accounts.  If pull secrets aren't used, the "secrets" below can
+  # be safely dropped, but the logic will fetch the service account to check for pull
+  # secrets.
+  - apiGroups: [""]
+    resources: ["serviceaccounts", "secrets"]
+    verbs: ["get"]
+# Copyright 2022 Chainguard, Inc.
+# SPDX-License-Identifier: Apache-2.0
+---
+apiVersion: gulfstream.dev/v1alpha1
+kind: Controller
+metadata:
+  name: continuous-verification
+spec:
+  delegate: https://cosigned-continuous-verification.enforce.dev
+  primary:
+    version: v1
+    resource: configmaps
+    namespace: cosign-system
+    match:
+      - fieldPath: metadata.name
+        value: config-image-policies
+  authorized:
+    # These are required by k8schain
+    - resources: [serviceaccounts, secrets]
+      verbs: [get]
+      allowCrossNamespace: true
+# Copyright 2022 Chainguard, Inc.
+# SPDX-License-Identifier: Apache-2.0
+---
+apiVersion: gulfstream.dev/v1alpha1
+kind: Controller
+metadata:
+  name: policy-compiler
+spec:
+  delegate: https://policy-compiler.enforce.dev
+  primary:
+    group: policy.sigstore.dev
+    version: v1alpha1
+    resource: clusterimagepolicies
+  secondary:
+    # We double this up to prepare for things to cut over,
+    # so that this isn't a breaking change, but this isn't
+    # used yet.
+    - group: policy.sigstore.dev
+      version: v1beta1
+      resource: clusterimagepolicies
+    - version: v1
+      resource: configmaps
+      namespace: cosign-system
+      relationship: Reference
+    - version: v1
+      resource: secrets
+      relationship: Reference
+      namespace: cosign-system
+  authorized:
+    # K8s events
+    - resources: [events]
+      verbs: [create]
+  # Resync when this changes
+  configs:
+    - namespace: cosign-system
+      name: config-image-policies
+      onChanged: Resync
+# Copyright 2022 Chainguard, Inc.
+# SPDX-License-Identifier: Apache-2.0
+---
+apiVersion: gulfstream.dev/v1alpha1
+kind: Controller
+metadata:
+  name: trustroot-compiler
+spec:
+  delegate: https://trustroot-compiler.enforce.dev
+  primary:
+    group: policy.sigstore.dev
+    version: v1alpha1
+    resource: trustroots
+  secondary:
+    - version: v1
+      resource: configmaps
+      relationship: Reference
+      namespace: cosign-system
+  authorized:
+    # K8s events
+    - resources: [events]
+      verbs: [create]
+  # Resync when this changes
+  configs:
+    - namespace: cosign-system
+      name: config-sigstore-keys
+      onChanged: Resync
+# Copyright 2021 Chainguard, Inc.
+# SPDX-License-Identifier: Apache-2.0
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: cosigned-image-policies-configmaps-rbac
+  namespace: cosign-system
+  labels:
+    # Don't install this for agentless where we use IAM
+    # for access instead.
+    agentless.chainguard.dev/skip: "true"
+roleRef:
+  kind: ClusterRole
+  name: cosigned-image-policies-rbac
+  apiGroup: rbac.authorization.k8s.io
+subjects:
+  - kind: ServiceAccount
+    name: controller
+    namespace: gulfstream
+# Copyright 2022 Chainguard, Inc.
+# SPDX-License-Identifier: Apache-2.0
+---
+apiVersion: admissionregistration.k8s.io/v1
+kind: MutatingWebhookConfiguration
+metadata:
+  name: policy-defaulting.webhook.policy.sigstore.dev
+webhooks:
+  - admissionReviewVersions: ["v1"]
+    clientConfig:
+      service:
+        namespace: gulfstream
+        name: webhook
+        # This is where the MCP will host this webhook (see Webhook below)
+        path: /admissionwebhooks/cosigned-policy-defaulting
+{{- if .Values.enforcerOptions.webhookFailOpen }}
+    failurePolicy: Ignore
+{{- else }}
+    failurePolicy: Fail
+{{- end }}
+    sideEffects: None
+    name: policy-defaulting.webhook.policy.sigstore.dev
+    rules:
+      - apiGroups: ["policy.sigstore.dev"]
+        apiVersions: ["v1alpha1", "v1beta1"]
+        operations: ["CREATE", "UPDATE"]
+        resources: ["clusterimagepolicies/*", "trustroots/*"]
+---
+apiVersion: gulfstream.dev/v1alpha1
+kind: Webhook
+metadata:
+  name: cosigned-policy-defaulting
+spec:
+  ref:
+    apiVersion: admissionregistration.k8s.io/v1
+    kind: MutatingWebhookConfiguration
+    name: policy-defaulting.webhook.policy.sigstore.dev
+  delegate: https://policy-defaulting.enforce.dev
+# Copyright 2022 Chainguard, Inc.
+# SPDX-License-Identifier: Apache-2.0
+---
+apiVersion: admissionregistration.k8s.io/v1
+kind: ValidatingWebhookConfiguration
+metadata:
+  name: policy-validation.webhook.policy.sigstore.dev
+webhooks:
+  - admissionReviewVersions: ["v1"]
+    clientConfig:
+      service:
+        namespace: gulfstream
+        name: webhook
+        # This is where the MCP will host this webhook (see Webhook below)
+        path: /admissionwebhooks/cosigned-policy-validation
+    failurePolicy: Fail
+    sideEffects: None
+    name: policy-validation.webhook.policy.sigstore.dev
+    rules:
+      - apiGroups: ["policy.sigstore.dev"]
+        apiVersions: ["v1alpha1", "v1beta1"]
+        operations: ["CREATE", "UPDATE"]
+        resources: ["clusterimagepolicies/*", "trustroots/*"]
+---
+apiVersion: gulfstream.dev/v1alpha1
+kind: Webhook
+metadata:
+  name: cosigned-policy-validation
+spec:
+  ref:
+    apiVersion: admissionregistration.k8s.io/v1
+    kind: ValidatingWebhookConfiguration
+    name: policy-validation.webhook.policy.sigstore.dev
+  # This configMap contains the configuration settings of the PolicyController.
+  configs:
+    - namespace: cosign-system
+      name: config-policy-controller
+  # The admission webhook uses these to customize its behavior.
+  delegate: https://policy-validation.enforce.dev
+# Copyright 2022 Chainguard, Inc.
+# SPDX-License-Identifier: Apache-2.0
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: config-image-policies
+  namespace: cosign-system
+  annotations:
+    # Have continuous verification constantly checking for new containers
+    # subject to policies and reflecting their status to the API.
+    gulfstream.dev/resync: "10s"
+# This is entirely populated by the controller, and if we include the
+# _example we see log lines about failing to parse it.
+# Copyright 2022 Chainguard, Inc.
+# SPDX-License-Identifier: Apache-2.0
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: config-policy-controller
+  namespace: cosign-system
+data:
+{{- if .Values.enforcerOptions.enableCIPCache }}
+  dev.chainguard.enable-cip-cache: "true"
+{{- end }}
+  no-match-policy: {{.Values.enforcerOptions.noMatchPolicy}}
+# Copyright 2022 Chainguard, Inc.
+# SPDX-License-Identifier: Apache-2.0
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: config-sigstore-keys
+  namespace: cosign-system
+  annotations:
+    # Just a placeholder here
+    gulfstream.dev/resync: "3600s"
+# This is entirely populated by the controller, and if we include the
+# _example we see log lines about failing to parse it.
+# Copyright 2021 Chainguard, Inc.
+# SPDX-License-Identifier: Apache-2.0
+---
+apiVersion: gulfstream.dev/v1alpha1
+kind: Webhook
+metadata:
+  name: policy-conversion
+spec:
+  ref:
+    apiVersion: apiextensions.k8s.io/v1
+    kind: CustomResourceDefinition
+    name: clusterimagepolicies.policy.sigstore.dev
+  delegate: https://policy-conversion.enforce.dev
+# Copyright 2021 Chainguard, Inc.
+# SPDX-License-Identifier: Apache-2.0
+---
+apiVersion: admissionregistration.k8s.io/v1
+kind: MutatingWebhookConfiguration
+metadata:
+  name: enforcer.chainguard.dev
+webhooks:
+  - name: enforcer.chainguard.dev
+    namespaceSelector:
+      # The webhook should only apply to things that opt-in
+      matchExpressions:
+{{- if eq .Values.enforcerOptions.namespaceEnforcementMode "opt-out" }}
+        - key: policy.sigstore.dev/exclude
+          operator: NotIn
+{{- else }}
+        - key: policy.sigstore.dev/include
+          operator: In
+{{- end }}
+          values: ["true"]
+    rules:
+      - apiGroups: [""]
+        apiVersions: ["v1"]
+        operations: ["CREATE", "UPDATE"]
+        resources: ["pods"]
+      - apiGroups: ["apps"]
+        apiVersions: ["v1"]
+        operations: ["CREATE", "UPDATE"]
+        resources: ["deployments", "replicasets", "statefulsets", "daemonsets"]
+      - apiGroups: ["batch"]
+        apiVersions: ["v1", "v1beta1"]
+        operations: ["CREATE", "UPDATE"]
+        resources: ["jobs", "cronjobs"]
+    admissionReviewVersions: [v1]
+    clientConfig:
+      service:
+        namespace: gulfstream
+        name: webhook
+        # This is where the MCP will host this webhook (see Webhook below)
+        path: /admissionwebhooks/cosigned-resolution
+{{- if .Values.enforcerOptions.webhookFailOpen }}
+    failurePolicy: Ignore
+{{- else }}
+    failurePolicy: Fail
+{{- end }}
+    reinvocationPolicy: IfNeeded
+    sideEffects: None
+    timeoutSeconds: 25
+---
+apiVersion: gulfstream.dev/v1alpha1
+kind: Webhook
+metadata:
+  name: cosigned-resolution
+spec:
+  ref:
+    apiVersion: admissionregistration.k8s.io/v1
+    kind: MutatingWebhookConfiguration
+    name: enforcer.chainguard.dev
+  authorized:
+    # These resources are accessed as part of image resolution.
+    - resources: [serviceaccounts, secrets]
+      verbs: [get]
+      # Allow access to the verification key in cosign-system
+      allowCrossNamespace: true
+  # This contains the serialized ClusterImagePolicy that are used for validating
+  # admission.
+  configs:
+    - namespace: cosign-system
+      name: config-image-policies
+    # This contains the serialized ClusterImagePolicy that are used for validating
+    # admission.
+    - namespace: cosign-system
+      name: config-sigstore-keys
+    - namespace: cosign-system
+      name: config-policy-controller
+  delegate: https://cosigned-resolution.enforce.dev
+---
+apiVersion: admissionregistration.k8s.io/v1
+kind: ValidatingWebhookConfiguration
+metadata:
+  name: enforcer.chainguard.dev
+webhooks:
+  - name: enforcer.chainguard.dev
+    namespaceSelector:
+      # The webhook should only apply to things that opt-in
+      matchExpressions:
+{{- if eq .Values.enforcerOptions.namespaceEnforcementMode "opt-out" }}
+        - key: policy.sigstore.dev/exclude
+          operator: NotIn
+{{- else }}
+        - key: policy.sigstore.dev/include
+          operator: In
+{{- end }}
+          values: ["true"]
+    rules:
+      - apiGroups: [""]
+        apiVersions: ["v1"]
+        operations: ["CREATE", "UPDATE"]
+        resources: ["pods", "pods/ephemeralcontainers"]
+      - apiGroups: ["apps"]
+        apiVersions: ["v1"]
+        operations: ["CREATE", "UPDATE"]
+        resources: ["deployments", "replicasets", "statefulsets", "daemonsets"]
+      - apiGroups: ["batch"]
+        apiVersions: ["v1", "v1beta1"]
+        operations: ["CREATE", "UPDATE"]
+        resources: ["jobs", "cronjobs"]
+    admissionReviewVersions: [v1]
+    clientConfig:
+      service:
+        namespace: gulfstream
+        name: webhook
+        # This is where the MCP will host this webhook (see Webhook below)
+        path: /admissionwebhooks/cosigned-verification
+{{- if .Values.enforcerOptions.webhookFailOpen }}
+    failurePolicy: Ignore
+{{- else }}
+    failurePolicy: Fail
+{{- end }}
+    sideEffects: None
+    timeoutSeconds: 25
+---
+apiVersion: gulfstream.dev/v1alpha1
+kind: Webhook
+metadata:
+  name: cosigned-verification
+spec:
+  ref:
+    apiVersion: admissionregistration.k8s.io/v1
+    kind: ValidatingWebhookConfiguration
+    name: enforcer.chainguard.dev
+  authorized:
+    # These resources are accessed as part of image resolution.
+    - resources: [serviceaccounts, secrets]
+      verbs: [get]
+      # Allow access to the verification key in cosign-system
+      allowCrossNamespace: true
+  # This contains the serialized ClusterImagePolicy that are used for validating
+  # admission.
+  configs:
+    - namespace: cosign-system
+      name: config-image-policies
+    # This contains the serialized TrustRoots that are used for validating
+    # admission.
+    - namespace: cosign-system
+      name: config-sigstore-keys
+    - namespace: cosign-system
+      name: config-policy-controller
+  delegate: https://cosigned-verification.enforce.dev
+# Copyright 2022 Chainguard, Inc.
+# SPDX-License-Identifier: Apache-2.0
+---
+kind: ClusterRole
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: policy-distribution-clusterrole-rbac
+  labels:
+    # Don't install this for agentless where we use IAM
+    # for access instead.
+    agentless.chainguard.dev/skip: "true"
+rules:
+  - apiGroups: [""]
+    resources: ["secrets"]
+    verbs: ["get", "list", "watch", "create", "patch", "delete", "deletecollection"]
+# Copyright 2022 Chainguard, Inc.
+# SPDX-License-Identifier: Apache-2.0
+---
+# RBAC granting the gulfstream controller's aggregated cluster role access to the resources needed
+kind: ClusterRole
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: policy-distribution-rbac
+  labels:
+    # Don't install this for agentless where we use IAM
+    # for access instead.
+    agentless.chainguard.dev/skip: "true"
+    # Aggregate into the gulfstream's cluster role.
+    gulfstream.dev/controller: "true"
+rules:
+  # We reconcile the gulfstream namespace.
+  - apiGroups: [""]
+    resources: ["namespaces"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: ["policy.sigstore.dev"]
+    resources: ["clusterimagepolicies", "clusterimagepolicies/status"]
+    verbs: ["get", "list", "watch", "create", "update", "patch", "delete", "deletecollection"]
+  - apiGroups: [""]
+    resources: ["secrets"]
+    verbs: ["get", "list", "watch", "create", "patch", "delete", "deletecollection"]
+# Copyright 2022 Chainguard, Inc.
+# SPDX-License-Identifier: Apache-2.0
+---
+apiVersion: gulfstream.dev/v1alpha1
+kind: Controller
+metadata:
+  name: policy-distribution
+spec:
+  primary:
+    version: v1
+    resource: namespaces
+    resyncPeriod: "10s"
+    match:
+      - fieldPath: metadata.name
+        # This namespace is installed when ClusterImagePolicy CRDs is,
+        # so it should always exist.
+        value: cosign-system
+  secondary:
+    - version: v1
+      resource: secrets
+      namespace: cosign-system
+    - group: policy.sigstore.dev
+      version: v1alpha1
+      resource: clusterimagepolicies
+    # We double this up to prepare for things to cut over,
+    # so that this isn't a breaking change, but this isn't
+    # used yet.
+    - group: policy.sigstore.dev
+      version: v1beta1
+      resource: clusterimagepolicies
+  authorized:
+    # K8s events
+    - resources: [events]
+      verbs: [create]
+  delegate: https://policy-distribution.enforce.dev
+# Copyright 2022 Chainguard, Inc.
+# SPDX-License-Identifier: Apache-2.0
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: policy-distribution-secrets-rbac
+  namespace: cosign-system
+  labels:
+    # Don't install this for agentless where we use IAM
+    # for access instead.
+    agentless.chainguard.dev/skip: "true"
+roleRef:
+  kind: ClusterRole
+  name: policy-distribution-clusterrole-rbac
+  apiGroup: rbac.authorization.k8s.io
+subjects:
+  - kind: ServiceAccount
+    name: controller
+    namespace: gulfstream
