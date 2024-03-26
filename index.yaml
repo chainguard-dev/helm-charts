@@ -2,6 +2,24 @@ apiVersion: v1
 entries:
   enforce-agent:
   - apiVersion: v2
+    appVersion: v0.1.255
+    created: "2024-03-26T02:37:53.135826894Z"
+    description: 'A helm chart for Chainguard''s Enforce Agent.  Documentation for
+      the chart can be found [here](https://edu.chainguard.dev/chainguard/chainguard-enforce/chainguard-enforce-kubernetes/alternative-installation-methods/). '
+    digest: 8dacb5504d9b9536ce32b6128c1529afd51eccc6aa39b63b148bed654115c20c
+    home: https://chainguard.dev
+    icon: https://avatars.githubusercontent.com/u/87436699?s=200&v=4
+    keywords:
+    - chainguard
+    maintainers:
+    - name: The Chainguard Team
+      url: https://chainguard.dev
+    name: enforce-agent
+    type: application
+    urls:
+    - https://github.com/chainguard-dev/helm-charts/releases/download/enforce-agent-0.0.120/enforce-agent-0.0.120.tgz
+    version: 0.0.120
+  - apiVersion: v2
     appVersion: v0.1.253
     created: "2024-03-15T23:22:06.511822831Z"
     description: 'A helm chart for Chainguard''s Enforce Agent.  Documentation for
@@ -2139,4 +2157,4 @@ entries:
     urls:
     - https://github.com/chainguard-dev/helm-charts/releases/download/enforce-agent-0.0.1/enforce-agent-0.0.1.tgz
     version: 0.0.1
-generated: "2024-03-15T23:22:06.512571951Z"
+generated: "2024-03-26T02:37:53.136694818Z"
